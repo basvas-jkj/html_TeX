@@ -1,0 +1,8 @@
+.vs/
+dist/
+node_modules/
+
+docs/*
+!docs/img/
+!docs/**.tex
+!docs/**.pdf
