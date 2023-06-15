@@ -1,0 +1,34 @@
+{
+    "name": "html_TeX",
+    "version": "1.0.0",
+    "description": "Program translating HTML into LaTeX.",
+    "main": "src/main.ts",
+    "repository":
+    {
+        "repository":
+        [
+            {
+                "type": "git",
+                "url": "https://github.com/basvas-jkj/html_TeX"
+            },
+            {
+                "type": "git",
+                "url": "https://gitlab.mff.cuni.cz/teaching/nprg031/2023-summer/student-stupkava"
+            }
+        ]
+    },
+    "scripts":
+    {
+        "clean": "rm dist/*",
+        "build": "npm run clean; tsc",
+        "debug": "npm install",
+        "release": "npm install --omit=dev"
+    },
+    "author": "Václav Stupka",
+    "license": "ISC",
+    "devDependencies":
+    {
+        "@types/node": "^20.3.1",
+        "typescript": "^4.8.4"
+    }
+}
