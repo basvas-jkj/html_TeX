@@ -1,8 +1,7 @@
 import {EventEmitter} from "node:events";
 
-const EOF = "";
-const REPLACEMENT = String.fromCharCode(0xFFFD);
-type CHAR = string; // used for strings one character long at most
+import {CHAR, EOF, REPLACEMENT} from "./char";
+import {is_ascii_letter, is_ascii_upper, is_white_char} from "./char";
 
 enum TOKEN_TYPE
 {
@@ -70,43 +69,6 @@ export class TOKENISER extends EventEmitter
         this.emit(token, new TOKEN(type, content));
     }
 
-    private is_ascii_upper(c: CHAR): boolean
-    {
-        if (c == EOF)
-        {
-            return false;
-        }
-        else
-        {
-            const code = c.charCodeAt(0);
-            return "A".charCodeAt(0) <= code && code <= "Z".charCodeAt(0);
-        }
-    }
-    private is_ascii_letter(c: CHAR): boolean
-    {
-        if (c == EOF)
-        {
-            return false;
-        }
-        else
-        {
-            const code = c.charCodeAt(0);
-            return ("a".charCodeAt(0) <= code && code <= "z".charCodeAt(0)) || this.is_ascii_upper(c);
-        }
-    }
-    private is_white_char(c: CHAR): boolean
-    {
-        if (c == EOF)
-        {
-            return false;
-        }
-        else
-        {
-            return [' ', '\t', '\n', '\f'].includes(c);
-    
-        }
-    }
-
     private data_state(c: CHAR): void
     {
         switch (c)
@@ -140,7 +102,7 @@ export class TOKENISER extends EventEmitter
         {
             this.state = STATE.end_tag_open;
         }
-        else if (this.is_ascii_letter(c))
+        else if (is_ascii_letter(c))
         {
             this.token = new TOKEN(TOKEN_TYPE.start_tag, "");
             this.reconsume(STATE.tag_name);
@@ -166,7 +128,7 @@ export class TOKENISER extends EventEmitter
     }
     private end_tag_open_state(c: CHAR): void
     {
-        if (this.is_ascii_letter(c))
+        if (is_ascii_letter(c))
         {
             this.token = new TOKEN(TOKEN_TYPE.end_tag, "");
             this.reconsume(STATE.tag_name);
@@ -192,7 +154,7 @@ export class TOKENISER extends EventEmitter
     }
     private tag_name_state(c: CHAR): void
     {
-        if (this.is_white_char(c))
+        if (is_white_char(c))
         {
             this.state = STATE.before_attribute_name;
         }
@@ -206,7 +168,7 @@ export class TOKENISER extends EventEmitter
             this.emit_token();
             this.token = null;
         }
-        else if (this.is_ascii_upper(c))
+        else if (is_ascii_upper(c))
         {
             c = c.toLowerCase();
             this.token.add(c);
