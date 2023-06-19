@@ -1,13 +1,17 @@
 import {EventEmitter} from "node:events";
 
+import {BUFFER} from "./buffer";
+import {TOKEN, TOKEN_TYPE} from "./token";
 import {CHAR, EOF, REPLACEMENT} from "./char";
 import {is_ascii_letter, is_ascii_upper, is_white_char} from "./char";
-import {TOKEN, TOKEN_TYPE} from "./token";
 
 enum STATE
 {
-    data, tag_open, end_tag_open, tag_name, self_closing_start_tag, bogus_comment,
-    character_reference, markup_declaration_open, before_attribute_name
+    data, 
+    tag_open, end_tag_open, tag_name, self_closing_start_tag,
+    bogus_comment,
+    character_reference, markup_declaration_open,
+    before_attribute_name
 }
 
 const e = new EventEmitter();
@@ -15,8 +19,7 @@ const e = new EventEmitter();
 let state: STATE;
 let return_state: STATE;
 let token: TOKEN;
-
-let reconsume: (state: STATE) => void;
+let buffer: BUFFER;
 
 function emit_error(message: string): void
 {
@@ -68,13 +71,15 @@ function tag_open_state(c: CHAR): void
     else if (is_ascii_letter(c))
     {
         token = new TOKEN(TOKEN_TYPE.start_tag, "");
-        reconsume(STATE.tag_name);
+        buffer.send_back();
+        state = STATE.tag_name;
     }
     else if (c == '?')
     {
         emit_error("unexpected question mark instead of tag name");
         token = new TOKEN(TOKEN_TYPE.comment, "");
-        reconsume(STATE.bogus_comment);
+        buffer.send_back();
+        state = STATE.bogus_comment;
     }
     else if (c == EOF)
     {
@@ -86,7 +91,8 @@ function tag_open_state(c: CHAR): void
     {
         emit_error("invalid first character of tag name");
         emit_new_token(TOKEN_TYPE.character, '<');
-        reconsume(STATE.data);
+        buffer.send_back();
+        state = STATE.data;
     }
 }
 function end_tag_open_state(c: CHAR): void
@@ -94,7 +100,8 @@ function end_tag_open_state(c: CHAR): void
     if (is_ascii_letter(c))
     {
         token = new TOKEN(TOKEN_TYPE.end_tag, "");
-        reconsume(STATE.tag_name);
+        buffer.send_back();
+        state = STATE.tag_name;
     }
     else if (c == '>')
     {
@@ -112,7 +119,8 @@ function end_tag_open_state(c: CHAR): void
     {
         emit_error("invalid first character of tag name");
         token = new TOKEN(TOKEN_TYPE.comment, "");
-        reconsume(STATE.bogus_comment);
+        buffer.send_back();
+        state = STATE.bogus_comment;
     }
 }
 function tag_name_state(c: CHAR): void
@@ -166,7 +174,8 @@ function self_closing_start_tag_state(c: CHAR): void
             break;
         default:
             emit_error("unexpected solidus in tag");
-            reconsume(STATE.before_attribute_name);
+            buffer.send_back();
+            state = STATE.before_attribute_name;
     }
 }
 function bogus_comment_state(c: CHAR): void
@@ -191,21 +200,15 @@ function bogus_comment_state(c: CHAR): void
     }
 }
 
-export function tokenise(source: string, parse_error_handler: (message: string) => void, token_handler: (t: TOKEN) => void): void
+export function tokenise(b: BUFFER, parse_error_handler: (message: string) => void, token_handler: (t: TOKEN) => void): void
 {
     e.on("parse_error", parse_error_handler);
     e.on("token", token_handler);
 
     state = STATE.data;
     token = null;
-
-    let f = 0;
-    reconsume = function (s: STATE)
-    {
-        state = s;
-        f -= 1;
-    }
-
+    buffer = b;
+    
     const state_handlers: Record<STATE, (c: CHAR) => void> =
     {
         [STATE.data]: data_state,
@@ -218,12 +221,10 @@ export function tokenise(source: string, parse_error_handler: (message: string) 
         [STATE.markup_declaration_open]: null,
         [STATE.before_attribute_name]: null
     }
-
-    do
+    
+    while (!buffer.empty())
     {
-        const c = (f < source.length) ? source[f] : EOF;
-        state_handlers[state](c);
-        f += 1;
+        const ch = buffer.read();
+        state_handlers[state](ch);
     }
-    while (f <= source.length);
 }
