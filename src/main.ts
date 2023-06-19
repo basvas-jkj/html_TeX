@@ -1,6 +1,7 @@
 ﻿import * as fs from "node:fs";
 
 import {TOKEN} from "./token";
+import {BUFFER} from "./buffer";
 import {tokenise} from "./tokeniser"
 
 function on_parse_error(message: string): void
@@ -20,7 +21,8 @@ function on_uncaught_exception(e: Error)
 function main(): void
 {
     const source = fs.readFileSync("ex.html", "utf-8");
-    tokenise(source, on_parse_error, on_token);
+    const b = new BUFFER(source);
+    tokenise(b, on_parse_error, on_token);
 }
 
 process.on("uncaughtException", on_uncaught_exception);
