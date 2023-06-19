@@ -34,7 +34,8 @@ export class TOKEN
 
 enum STATE
 {
-    data, tag_open, end_tag_open, tag_name, self_closing_start_tag, bogus_comment
+    data, tag_open, end_tag_open, tag_name, self_closing_start_tag, bogus_comment,
+    character_reference, markup_declaration_open, before_attribute_name
 }
 
 
@@ -42,9 +43,11 @@ const parse_error = "parse_error";
 const token = "token";
 export class TOKENISER extends EventEmitter
 {
-    private s: STATE;
-    private t: TOKEN;
-    private reconsume: ()=>void;
+    private state: STATE;
+    private return_state: STATE;
+    private reconsume: (state: STATE)=>void;
+
+    private token: TOKEN;
 
     public constructor(parse_error_handler: (message: string)=>void, token_handler: (t: TOKEN)=>void)
     {
@@ -53,15 +56,20 @@ export class TOKENISER extends EventEmitter
         this.on(token, token_handler);
     }
 
-    private on_error(message: string): void
+    private emit_error(message: string): void
     {
         this.emit(parse_error, message)
     }
-    private on_token(t: TOKEN)
+    private emit_token()
     {
-        this.emit(token, t);
+        this.emit(token, this.token);
+        this.token = null;
     }
-    
+    private emit_new_token(type: TOKEN_TYPE, content = "")
+    {
+        this.emit(token, new TOKEN(type, content));
+    }
+
     private is_ascii_upper(c: CHAR): boolean
     {
         if (c == EOF)
@@ -103,20 +111,22 @@ export class TOKENISER extends EventEmitter
     {
         switch (c)
         {
-            case '&': throw new Error("under construction");
+            case '&':
+                this.return_state = STATE.data;
+                this.state = STATE.character_reference;
+                break;
             case '<':
-                this.s = STATE.tag_open;
+                this.state = STATE.tag_open;
+                break;
+            case '\0':
+                this.emit_error("unexpected null character");
+                this.emit_new_token(TOKEN_TYPE.character, c);
                 break;
             case EOF:
-                this.on_token(new TOKEN(TOKEN_TYPE.eof));
-                break;
-
-            case '\0':
-                this.on_error("unexpected null character");
-                this.on_token(new TOKEN(TOKEN_TYPE.character, c));
+                this.emit_new_token(TOKEN_TYPE.eof);
                 break;
             default:
-                this.on_token(new TOKEN(TOKEN_TYPE.character, c));
+                this.emit_new_token(TOKEN_TYPE.character, c);
                 break;
         }
     }
@@ -124,101 +134,96 @@ export class TOKENISER extends EventEmitter
     {
         if (c == '!')
         {
-            throw new Error("under construction");
+            this.state = STATE.markup_declaration_open;
         }
         else if (c == '/')
         {
-            this.s = STATE.end_tag_open;
+            this.state = STATE.end_tag_open;
         }
         else if (this.is_ascii_letter(c))
         {
-            this.t = new TOKEN(TOKEN_TYPE.start_tag, "");
-            this.s = STATE.tag_name;
-            this.reconsume();
+            this.token = new TOKEN(TOKEN_TYPE.start_tag, "");
+            this.reconsume(STATE.tag_name);
         }
         else if (c == '?')
         {
-            this.on_error("unexpected question mark instead of tag name");
-            this.t = new TOKEN(TOKEN_TYPE.comment, "");
-            this.s = STATE.bogus_comment;
-            this.reconsume();
+            this.emit_error("unexpected question mark instead of tag name");
+            this.token = new TOKEN(TOKEN_TYPE.comment, "");
+            this.reconsume(STATE.bogus_comment);
         }
         else if (c == EOF)
         {
-            this.on_error("EOF before tag name");
-            this.on_token(new TOKEN(TOKEN_TYPE.character, '<'));
-            this.on_token(new TOKEN(TOKEN_TYPE.eof));
+            this.emit_error("EOF before tag name");
+            this.emit_new_token(TOKEN_TYPE.character, '<');
+            this.emit_new_token(TOKEN_TYPE.eof);
         }
         else
         {
-            this.on_error("invalid first character of tag name");
-            this.on_token(new TOKEN(TOKEN_TYPE.character, '<'));
-            this.s = STATE.data;
-            this.reconsume();
+            this.emit_error("invalid first character of tag name");
+            this.emit_new_token(TOKEN_TYPE.character, '<');
+            this.reconsume(STATE.data);
         }
     }
     private end_tag_open_state(c: CHAR): void
     {
         if (this.is_ascii_letter(c))
         {
-            this.t = new TOKEN(TOKEN_TYPE.end_tag, "");
-            this.s = STATE.tag_name;
-            this.reconsume();
+            this.token = new TOKEN(TOKEN_TYPE.end_tag, "");
+            this.reconsume(STATE.tag_name);
         }
         else if (c == '>')
         {
-            this.on_error("missing end tag name");
-            this.s = STATE.data;
+            this.emit_error("missing end tag name");
+            this.state = STATE.data;
         }
         else if (c == EOF)
         {
-            this.on_error("EOF before tag name");
-            this.on_token(new TOKEN(TOKEN_TYPE.character, '<'));
-            this.on_token(new TOKEN(TOKEN_TYPE.character, '/'));
-            this.on_token(new TOKEN(TOKEN_TYPE.eof));
+            this.emit_error("EOF before tag name");
+            this.emit_new_token(TOKEN_TYPE.character, '<');
+            this.emit_new_token(TOKEN_TYPE.character, '/');
+            this.emit_new_token(TOKEN_TYPE.eof);
         }
         else
         {
-            this.on_error("invalid first character of tag name");
-            this.t = new TOKEN(TOKEN_TYPE.comment, "");
-            this.s = STATE.bogus_comment;
-            this.reconsume();
+            this.emit_error("invalid first character of tag name");
+            this.token = new TOKEN(TOKEN_TYPE.comment, "");
+            this.reconsume(STATE.bogus_comment);
         }
     }
     private tag_name_state(c: CHAR): void
     {
         if (this.is_white_char(c))
         {
-            throw new Error("under construction");
+            this.state = STATE.before_attribute_name;
         }
         else if (c == '/')
         {
-            this.s = STATE.self_closing_start_tag;
+            this.state = STATE.self_closing_start_tag;
         }
         else if (c == '>')
         {
-            this.s = STATE.data;
-            this.on_token(this.t);
-            this.t = null;
+            this.state = STATE.data;
+            this.emit_token();
+            this.token = null;
         }
         else if (this.is_ascii_upper(c))
         {
             c = c.toLowerCase();
-            this.t.add(c);
+            this.token.add(c);
         }
         else if (c == '\0')
         {
-            this.on_error("unexpected null character");
-            this.t.add(REPLACEMENT);
+            this.emit_error("unexpected null character");
+            this.token.add(REPLACEMENT);
         }
         else if (c == EOF)
         {
-            this.on_error("eof in tag");
-            this.on_token(new TOKEN(TOKEN_TYPE.eof));
+            this.emit_error("eof in tag");
+            this.emit_new_token(TOKEN_TYPE.eof);
         }
         else
         {
-            this.t.add(c);
+            this.token.add(c);
         }
     }
     private self_closing_start_tag_state(c: CHAR): void
@@ -226,18 +231,17 @@ export class TOKENISER extends EventEmitter
         switch (c)
         {
             case ">":
-                this.t.self_closing = true;
-                this.s = STATE.data;
-                this.on_token(this.t);
-                this.t = null;
+                this.token.self_closing = true;
+                this.state = STATE.data;
+                this.emit_token();
                 break;
             case EOF:
-                this.on_error("eof in tag");
-                this.on_token(new TOKEN(TOKEN_TYPE.eof));
+                this.emit_error("eof in tag");
+                this.emit_new_token(TOKEN_TYPE.eof);
                 break;
             default:
-                this.on_error("unexpected solidus in tag");
-                throw new Error("under construction");
+                this.emit_error("unexpected solidus in tag");
+                this.reconsume(STATE.before_attribute_name);
         }
     }
     private bogus_comment_state(c: CHAR): void
@@ -245,33 +249,32 @@ export class TOKENISER extends EventEmitter
         switch (c)
         {
             case '>':
-                this.s = STATE.data;
-                this.on_token(this.t);
-                this.t = null;
+                this.state = STATE.data;
+                this.emit_token();
                 break;
             case EOF:
-                this.on_token(this.t);
-                this.on_token(new TOKEN(TOKEN_TYPE.eof));
-                this.t = null;
+                this.emit_token();
+                this.emit_new_token(TOKEN_TYPE.eof);
                 break;
             case '\0':
-                this.on_error("unexpected null character");
-                this.t.add(REPLACEMENT);
+                this.emit_error("unexpected null character");
+                this.token.add(REPLACEMENT);
                 break;
             default:
-                this.t.add(c);
+                this.token.add(c);
                 break;
         }
     }
 
     public tokenise(source: string): void
     {
-        this.s = STATE.data;
-        this.t = null;
+        this.state = STATE.data;
+        this.token = null;
 
         let f = 0;
-        this.reconsume = function()
+        this.reconsume = function(state: STATE)
         {
+            this.state = state;
             f -= 1;
         }
 
@@ -279,7 +282,7 @@ export class TOKENISER extends EventEmitter
         {
             const c = (f < source.length) ? source[f] : EOF;
 
-            switch (this.s as STATE)
+            switch (this.state as STATE)
             {
                 case STATE.data: 
                     this.data_state(c);
