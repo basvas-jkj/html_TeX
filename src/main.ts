@@ -1,5 +1,7 @@
 ﻿import * as fs from "node:fs";
-import {TOKENISER, TOKEN} from "./tokeniser"
+
+import {TOKEN} from "./token";
+import {TOKENISER} from "./tokeniser"
 
 function on_parse_error(message: string): void
 {
