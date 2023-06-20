@@ -15,6 +15,26 @@ export class BUFFER
         this.index += 1;
         return ch;
     }
+    public look(text: string, insensitive = false): boolean
+    {
+        let sub = this.source.substr(this.index, text.length);
+
+        if (insensitive)
+        {
+            text = text.toLowerCase();
+            sub = sub.toLowerCase();
+        }
+
+        if (text == sub)
+        {
+            this.index += text.length;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
     public send_back(): void
     {
         this.index -= 1;
