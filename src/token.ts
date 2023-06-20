@@ -18,7 +18,7 @@ export class TOKEN
 
     public to_string(): string
     {
-        return `<${this.type}> ${this.content}`;
+        return `<${this.type}> '${this.content}'`;
     }
     public add(c: string): void
     {
