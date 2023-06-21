@@ -1,8 +1,9 @@
-﻿import * as fs from "node:fs";
+import * as fs from "node:fs";
 
+import {TREE} from "./tree";
 import {TOKEN} from "./token";
 import {BUFFER} from "./buffer";
-import {tokenise} from "./tokeniser"
+import {tokenise} from "./tokeniser";
 
 function on_parse_error(message: string): void
 {

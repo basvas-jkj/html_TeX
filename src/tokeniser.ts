@@ -17,8 +17,11 @@ enum STATE
 
     tag_open, end_tag_open, tag_name, self_closing_start_tag,
     
-    character_reference, 
-    before_attribute_name
+    character_reference,
+
+    before_attribute_name, attribute_name, after_attribute_name,
+    before_attribute_value, attribute_value_unquoted, after_attribute_value_quoted,
+    attribute_value_single_quoted, attribute_value_double_quoted
 }
 
 const e = new EventEmitter();
@@ -225,7 +228,7 @@ function markup_declaration_open_state(): void
     }
     else if (buffer.look("[CDATA["))
     {
-        //TODO zamyslet se nad tím, jak má tato podmínka vypadat 
+        //TODO zamyslet se nad tÃ­m, jak mÃ¡ tato podmÃ­nka vypadat 
         if (false)
         {
             state = STATE.cdata_section;
@@ -450,6 +453,238 @@ function comment_end_bang_state(): void
     }
 }
 
+function before_attribute_name_state(): void
+{
+    const ch = buffer.read();
+    if (ch == '/' || ch == '>' || ch == EOF)
+    {
+        buffer.send_back();
+        state = STATE.after_attribute_name;
+    }
+    else if (ch == '=')
+    {
+        emit_error("unexpected equals sign before attribute name");
+        token.new_attribute(ch);
+        state = STATE.attribute_name;
+    }
+    else if (!is_white_char(ch))
+    {
+        token.new_attribute();
+        buffer.send_back();
+        state = STATE.attribute_name;
+    }
+}
+function attribute_name_state(): void
+{
+    let ch = buffer.read();
+    if (is_white_char(ch) || [EOF, '/', '>'].includes(ch))
+    {
+        buffer.send_back();
+        state = STATE.after_attribute_name;
+    }
+    else if (ch == '=')
+    {
+        state = STATE.before_attribute_value;
+    }
+    else if (is_ascii_upper(ch))
+    {
+        ch = ch.toLowerCase();
+        token.add_to_attribute_name(ch);
+    }
+    else if (ch == '\0')
+    {
+        emit_error("unexpected null character");
+        token.add_to_attribute_name(REPLACEMENT);
+    }
+    else if (['"', "'", '<'].includes(ch))
+    {
+        emit_error("unexpected character in attribute name");
+        token.add_to_attribute_name(ch);
+    }
+    else
+    {
+        token.add_to_attribute_name(ch);
+    }
+
+}
+function after_attribute_name_state(): void
+{
+    const ch = buffer.read();
+    if (ch == '/')
+    {
+        token.set_attribute(emit_error);
+        state = STATE.self_closing_start_tag;
+    }
+    else if (ch == '=')
+    {
+        state = STATE.before_attribute_value;
+    }
+    else if (ch == '>')
+    {
+        token.set_attribute(emit_error);
+        emit_token();
+        state = STATE.data;
+    }
+    else if (ch == EOF)
+    {
+        emit_error("eof in tag");
+        emit_new_token(TOKEN_TYPE.eof);
+    }
+    else if (!is_white_char(ch))
+    {
+        token.set_attribute(emit_error);
+        token.new_attribute();
+        buffer.send_back();
+        state = STATE.attribute_name;
+    }
+}
+function before_attribute_value_state(): void
+{
+    const ch = buffer.read();
+    if (ch == '"')
+    {
+        state = STATE.attribute_value_double_quoted;
+    }
+    else if (ch == "'")
+    {
+        state = STATE.attribute_value_single_quoted
+    }
+    else if (ch == '>')
+    {
+        emit_error("missing attribute value");
+        token.set_attribute(emit_error);
+        emit_token();
+        state = STATE.data;
+    }
+    else if (!is_white_char(ch))
+    {
+        buffer.send_back();
+        state = STATE.attribute_value_unquoted;
+    }
+}
+function attribute_value_double_quoted_state(): void
+{
+    const ch = buffer.read();
+    switch (ch)
+    {
+        case '"':
+            token.set_attribute(emit_error);
+            state = STATE.after_attribute_value_quoted;
+            break;
+        case '&':
+            return_state = STATE.attribute_value_unquoted;
+            state = STATE.character_reference;
+            break;
+        case '\0':
+            emit_error("unexpected null character");
+            token.add_to_attribute_value(REPLACEMENT);
+            break;
+        case EOF:
+            emit_error("eof in tag");
+            emit_new_token(TOKEN_TYPE.eof);
+            break;
+        default:
+            token.add_to_attribute_value(ch);
+            break;
+    }
+}
+function attribute_value_single_quoted_state(): void
+{
+    const ch = buffer.read();
+    switch (ch)
+    {
+        case "'":
+            token.set_attribute(emit_error);
+            state = STATE.after_attribute_value_quoted;
+            break;
+        case '&':
+            return_state = STATE.attribute_value_single_quoted;
+            state = STATE.character_reference;
+            break;
+        case '\0':
+            emit_error("unexpected null character");
+            token.add_to_attribute_value(REPLACEMENT);
+            break;
+        case EOF:
+            emit_error("eof in tag");
+            emit_new_token(TOKEN_TYPE.eof);
+            break;
+        default:
+            token.add_to_attribute_value(ch);
+            break;
+    }
+}
+function attribute_value_unquoted_state(): void
+{
+    const ch = buffer.read();
+    if (is_white_char(ch))
+    {
+        token.set_attribute(emit_error);
+        state = STATE.before_attribute_name;
+    }
+    else if (ch == '&')
+    {
+        return_state = STATE.attribute_value_unquoted;
+        state = STATE.character_reference;
+    }
+    else if (ch == '>')
+    {
+        token.set_attribute(emit_token);
+        emit_token();
+        state = STATE.data;
+    }
+    else if (ch == '\0')
+    {
+        emit_error("unexpected null character");
+        token.add_to_attribute_value(REPLACEMENT);
+    }
+    else if (['"', "'", '<', '=', '`'].includes(ch))
+    {
+        emit_error("unexpected character in unquoted attribute value");
+        token.add_to_attribute_value(ch);
+    }
+    else if (ch == EOF)
+    {
+        emit_error("eof in tag");
+        emit_new_token(TOKEN_TYPE.eof);
+    }
+    else
+    {
+        token.add_to_attribute_value(ch);
+    }
+}
+function after_attribute_value_quoted_state(): void
+{
+    const ch = buffer.read();
+    if (is_white_char(ch))
+    {
+        token.set_attribute(emit_error);
+        state = STATE.before_attribute_name;
+    }
+    else if (ch == '/')
+    {
+        token.set_attribute(emit_error);
+        state = STATE.self_closing_start_tag;
+    }
+    else if (ch == '>')
+    {
+        token.set_attribute(emit_error);
+        emit_token();
+        state = STATE.data;
+    }
+    else if (ch == EOF)
+    {
+        emit_error("eof in tag");
+        emit_new_token(TOKEN_TYPE.eof);
+    }
+    else
+    {
+        emit_error("missing whitespace between attributes");
+        buffer.send_back();
+        state = STATE.before_attribute_name;
+    }
+}
+
 export function tokenise(b: BUFFER, parse_error_handler: (message: string) => void, token_handler: (t: TOKEN) => void): void
 {
     e.on("parse_error", parse_error_handler);
@@ -482,7 +717,16 @@ export function tokenise(b: BUFFER, parse_error_handler: (message: string) => vo
         [STATE.comment_less_than_sign_bang_dash_dash]: comment_less_than_sign_bang_dash_dash_state,
         [STATE.comment_end]: comment_end_state,
         [STATE.comment_end_dash]: comment_end_dash_state,
-        [STATE.comment_end_bang]: comment_end_bang_state
+        [STATE.comment_end_bang]: comment_end_bang_state,
+
+        [STATE.before_attribute_name]: before_attribute_name_state,
+        [STATE.attribute_name]: attribute_name_state,
+        [STATE.after_attribute_name]: after_attribute_name_state,
+        [STATE.before_attribute_value]: before_attribute_value_state,
+        [STATE.attribute_value_unquoted]: attribute_value_unquoted_state,
+        [STATE.after_attribute_value_quoted]: after_attribute_value_quoted_state,
+        [STATE.attribute_value_single_quoted]: attribute_value_single_quoted_state,
+        [STATE.attribute_value_double_quoted]: attribute_value_double_quoted_state
     }
     
     while (!buffer.empty())
