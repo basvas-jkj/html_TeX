@@ -45,13 +45,18 @@ export class TOKEN
     }
     public set_attribute(emit_error: (message: string)=>void)
     {
-        if (this.attributes[this.new_attribute_name] == null)
+        if (this.new_attribute_name != "")
         {
-            this.attributes[this.new_attribute_name] = this.new_attribute_value;
-        }
-        else
-        {
-            emit_error("duplicate attributes");
+            if (this.attributes[this.new_attribute_name] == null)
+            {
+                this.attributes[this.new_attribute_name] = this.new_attribute_value;
+                this.new_attribute_name = "";
+                this.new_attribute_value = "";
+            }
+            else
+            {
+                emit_error("duplicate attributes");
+            }
         }
     }
 }

@@ -629,7 +629,7 @@ function attribute_value_unquoted_state(): void
     }
     else if (ch == '>')
     {
-        token.set_attribute(emit_token);
+        token.set_attribute(emit_error);
         emit_token();
         state = STATE.data;
     }
@@ -658,17 +658,14 @@ function after_attribute_value_quoted_state(): void
     const ch = buffer.read();
     if (is_white_char(ch))
     {
-        token.set_attribute(emit_error);
         state = STATE.before_attribute_name;
     }
     else if (ch == '/')
     {
-        token.set_attribute(emit_error);
         state = STATE.self_closing_start_tag;
     }
     else if (ch == '>')
     {
-        token.set_attribute(emit_error);
         emit_token();
         state = STATE.data;
     }
@@ -704,7 +701,6 @@ export function tokenise(b: BUFFER, parse_error_handler: (message: string) => vo
         [STATE.bogus_comment]: bogus_comment_state,
         [STATE.markup_declaration_open]: markup_declaration_open_state,
         [STATE.character_reference]: null,
-        [STATE.before_attribute_name]: null,
         [STATE.DOCTYPE]: null,
         [STATE.cdata_section]: null,
         
