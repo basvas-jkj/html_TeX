@@ -1,4 +1,4 @@
-import {EOF, CHAR} from "./char";
+import {EOF} from "./char";
 
 export class BUFFER
 {
@@ -9,7 +9,7 @@ export class BUFFER
         this.source = source;
     }
 
-    public read(): CHAR
+    public read(): string
     {
         const ch = (this.index < this.source.length) ? this.source[this.index] : EOF;
         this.index += 1;
