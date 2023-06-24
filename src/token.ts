@@ -1,31 +1,36 @@
 export enum TOKEN_TYPE
 {
-    character = "ch", eof = "EOF", start_tag = "st", end_tag = "et", comment = "c"
+    character = "ch", eof = "EOF", start_tag = "st", end_tag = "et", comment = "c", doctype = "dc"
 }
 
 export class TOKEN
 {
     public readonly type: TOKEN_TYPE;
-    private content: string;
+    private _content: string;
     public self_closing: boolean;
+
+    public get content()
+    {
+        return this._content;
+    }
 
     public readonly attributes: Record<string, string>;
     
     public constructor(type: TOKEN_TYPE, content = "")
     {
         this.type = type;
-        this.content = content;
+        this._content = content;
         this.self_closing = false;
-        this.attributes = (type == TOKEN_TYPE.start_tag) ? {} : null;
+        this.attributes = (type == TOKEN_TYPE.start_tag || type == TOKEN_TYPE.end_tag) ? {} : null;
     }
 
     public to_string(): string
     {
-        return `<${this.type}> '${this.content}'`;
+        return `<${this.type}> '${this._content}'`;
     }
     public add(c: string): void
     {
-        this.content += c;
+        this._content += c;
     }
 
     private new_attribute_name: string;
