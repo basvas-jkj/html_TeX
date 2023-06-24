@@ -1,11 +1,12 @@
+import * as _ from "lodash";
 import {EventEmitter} from "node:events";
 
 import {BUFFER} from "./buffer";
 import {TOKEN, TOKEN_TYPE} from "./token";
 import {EOF, REPLACEMENT} from "./char";
-import {is_ascii_letter, is_ascii_upper, is_white_char} from "./char";
+import {is_ascii_letter, is_ascii_lower, is_ascii_upper, is_white_char} from "./char";
 
-enum STATE
+export enum STATE
 {
     data, 
     markup_declaration_open, DOCTYPE, cdata_section,
@@ -21,7 +22,9 @@ enum STATE
 
     before_attribute_name, attribute_name, after_attribute_name,
     before_attribute_value, attribute_value_unquoted, after_attribute_value_quoted,
-    attribute_value_single_quoted, attribute_value_double_quoted
+    attribute_value_single_quoted, attribute_value_double_quoted,
+
+    rcdata, rcdata_less_than_sign, rcdata_end_tag_open, rcdata_end_tag_name
 }
 
 const e = new EventEmitter();
@@ -37,6 +40,18 @@ function emit_error(message: string): void
 }
 function emit_token(): void
 {
+    if (token.type == TOKEN_TYPE.end_tag)
+    {
+        if (!_.isEqual(token.attributes, {}))
+        {
+            emit_error("end tag with attributes");
+        }
+        else if (token.self_closing)
+        {
+            emit_error("end tag with trailing solidus")
+        }
+    }
+
     e.emit("token", token);
     token = null;
 }
@@ -138,7 +153,7 @@ function end_tag_open_state(): void
 }
 function tag_name_state(): void
 {
-    let ch = buffer.read();
+    const ch = buffer.read();
     if (is_white_char(ch))
     {
         state = STATE.before_attribute_name;
@@ -155,8 +170,7 @@ function tag_name_state(): void
     }
     else if (is_ascii_upper(ch))
     {
-        ch = ch.toLowerCase();
-        token.add(ch);
+        token.add(ch.toLowerCase());
     }
     else if (ch == '\0')
     {
@@ -682,6 +696,110 @@ function after_attribute_value_quoted_state(): void
     }
 }
 
+let appropriate_end_tag_name: string;
+let temporary_buffer: string;
+function rcdata_state(): void
+{
+    const ch = buffer.read();
+    switch (ch)
+    {
+        case '&':
+            return_state = STATE.rcdata;
+            state = STATE.character_reference;
+            break;
+        case '<':
+            state = STATE.rcdata_less_than_sign;
+            break;
+        case '\0':
+            emit_error("unexpected null character");
+            emit_new_token(TOKEN_TYPE.character, REPLACEMENT);
+            break;
+        case EOF:
+            emit_new_token(TOKEN_TYPE.eof);
+            break;
+        default:
+            emit_new_token(TOKEN_TYPE.character, ch);
+            break;
+    }
+}
+function rcdata_less_than_sign_state(): void
+{
+    const ch = buffer.read();
+    if (ch == '/')
+    {
+        temporary_buffer = "";
+        state = STATE.rcdata_end_tag_open;
+    }
+    else
+    {
+        emit_new_token(TOKEN_TYPE.character, '<');
+        buffer.send_back();
+        state = STATE.rcdata;
+    }
+}
+function rcdata_end_tag_open_state(): void
+{
+    const ch = buffer.read();
+    if (is_ascii_letter(ch))
+    {
+        token = new TOKEN(TOKEN_TYPE.end_tag);
+        buffer.send_back();
+        state = STATE.rcdata_end_tag_name;
+    }
+    else
+    {
+        emit_new_token(TOKEN_TYPE.character, '<');
+        emit_new_token(TOKEN_TYPE.character, '/');
+        buffer.send_back();
+        state = STATE.rcdata;
+    }
+}
+function rcdata_end_tag_name_state(): void
+{
+    const ch = buffer.read();
+    if (is_white_char(ch) && token.content == appropriate_end_tag_name)
+    {
+        state = STATE.before_attribute_name;
+    }
+    else if (ch == '/' && token.content == appropriate_end_tag_name)
+    {
+        state = STATE.self_closing_start_tag;
+    }
+    else if (ch == '>' && token.content == appropriate_end_tag_name)
+    {
+        emit_token();
+        state = STATE.data;
+    }
+    else if (is_ascii_upper(ch))
+    {
+        token.add(ch.toLowerCase());
+        temporary_buffer += ch;
+    }
+    else if (is_ascii_lower(ch))
+    {
+        token.add(ch);
+        temporary_buffer += ch;
+    }
+    else
+    {
+        emit_new_token(TOKEN_TYPE.character, '<');
+        emit_new_token(TOKEN_TYPE.character, '/');
+
+        for (const char of temporary_buffer)
+        {
+            emit_new_token(TOKEN_TYPE.character, char);
+        }
+
+        buffer.send_back();
+        state = STATE.rcdata;
+    }
+}
+
+export function switch_state(s: STATE, expected_end_tag_name: string)
+{
+    state = s;
+    appropriate_end_tag_name = expected_end_tag_name;
+}
 export function tokenise(b: BUFFER, parse_error_handler: (message: string) => void, token_handler: (t: TOKEN) => void): void
 {
     e.on("parse_error", parse_error_handler);
@@ -722,7 +840,12 @@ export function tokenise(b: BUFFER, parse_error_handler: (message: string) => vo
         [STATE.attribute_value_unquoted]: attribute_value_unquoted_state,
         [STATE.after_attribute_value_quoted]: after_attribute_value_quoted_state,
         [STATE.attribute_value_single_quoted]: attribute_value_single_quoted_state,
-        [STATE.attribute_value_double_quoted]: attribute_value_double_quoted_state
+        [STATE.attribute_value_double_quoted]: attribute_value_double_quoted_state,
+
+        [STATE.rcdata]: rcdata_state,
+        [STATE.rcdata_less_than_sign]: rcdata_less_than_sign_state,
+        [STATE.rcdata_end_tag_open]: rcdata_end_tag_open_state,
+        [STATE.rcdata_end_tag_name]: rcdata_end_tag_name_state
     }
     
     while (!buffer.empty())
