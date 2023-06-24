@@ -26,8 +26,13 @@
     },
     "author": "Václav Stupka",
     "license": "ISC",
+    "dependencies":
+    {
+        "lodash": "^4.17.21"
+    },
     "devDependencies":
     {
+        "@types/lodash": "^4.14.195",
         "@types/node": "^20.3.1",
         "@typescript-eslint/eslint-plugin": "^5.59.11",
         "@typescript-eslint/parser": "^5.59.11",
