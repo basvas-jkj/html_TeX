@@ -43,4 +43,8 @@ export class BUFFER
     {
         return (this.index > this.source.length);
     }
+    public log(): void
+    {
+        console.log('"' + this.source.slice(this.index) + '"');
+    }
 }
