@@ -242,8 +242,9 @@ function markup_declaration_open_state(): void
     }
     else if (buffer.look("[CDATA["))
     {
-        //TODO zamyslet se nad tím, jak má tato podmínka vypadat 
-        if (false)
+        throw new Error("CDATA not supported");
+        /*
+        if ()
         {
             state = STATE.cdata_section;
         }
@@ -252,7 +253,7 @@ function markup_declaration_open_state(): void
             emit_error("cdata in html content");
             token = new TOKEN(TOKEN_TYPE.comment, "[CDATA[");
             state = STATE.bogus_comment;
-        }
+        }*/
     }
     else
     {
