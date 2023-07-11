@@ -2,6 +2,7 @@ import * as CHAR from "./char";
 
 import {STATE, switch_state} from "./tokeniser";
 import {TOKEN, TOKEN_TYPE} from "./token";
+import {convert_to_LaTeX} from "./convertor"
 
 function is_white_char(ch: string): boolean
 {
@@ -15,36 +16,45 @@ enum MODE
     text
 }
 
-class NODE
+export class NODE
 {
-    protected children: NODE[];
-    protected content: string;
+    protected _children: NODE[];
+    protected _content: string;
+    
+    public get children(): NODE[]
+    {
+        return this._children;
+    }
+    public get content(): string
+    {
+        return this._content;
+    }
 
     public constructor(content: string = null)
     {
-        this.children = [];
-        this.content = content;
+        this._children = [];
+        this._content = content;
     }
 
     public add_child(child: NODE)
     {
-        this.children.push(child);
+        this._children.push(child);
     }
 
     public log(prefix = "")
     {
-        console.log(prefix + this.content);
-        for (const child of this.children)
+        console.log(prefix + this._content);
+        for (const child of this._children)
         {
             child.log(prefix + "_");
         }
     }
 }
-class ELEMENT extends NODE
+export class ELEMENT extends NODE
 {
     get name(): string
     {
-        return this.content;
+        return this._content;
     }
 
     public attributes: Record<string, string>;
@@ -61,9 +71,9 @@ class ELEMENT extends NODE
 
     public insert_char(ch: string)
     {
-        if (this.children.length > 0 && this.children[this.children.length-1] instanceof TEXT)
+        if (this._children.length > 0 && this._children[this._children.length-1] instanceof TEXT)
         {
-            (this.children[this.children.length-1] as TEXT).add_text(ch);
+            (this._children[this._children.length-1] as TEXT).add_text(ch);
         }
         else
         {
@@ -71,36 +81,46 @@ class ELEMENT extends NODE
         }
     }
 }
-class TEXT extends NODE
+export class TEXT extends NODE
 {
-    private text: string;
+    private _text: string;
+    public get text(): string
+    {
+        return this._text;
+    }
+
     public add_text(text: string)
     {
-        this.text += text;
+        this._text += text;
     }
     public constructor(text: string)
     {
         super();
-        this.content = "text";
-        this.text = text;
+        this._content = "text";
+        this._text = text;
     }
 
     public override log(prefix = "")
     {
-        console.log(prefix + " text" + '("' + this.text + '")');
+        console.log(prefix + " text" + '("' + this._text + '")');
     }
 }
 
 export class TREE
 {
     private insertion_mode: MODE;
-    private root: NODE;
+    private _root: NODE;
     private quirk_mode = false;
     private stack_of_open_elements: ELEMENT[];
     private readonly mode_handlers: Record<MODE, (t: TOKEN)=>boolean>;
     private head: ELEMENT = null;
     private original_mode: MODE;
     private _ready: boolean;
+
+    public get root(): NODE
+    {
+        return this._root;
+    }
     public get ready(): boolean
     {
         return this._ready;
@@ -114,14 +134,15 @@ export class TREE
     private stop_parsing()
     {
         this._ready = true;
-        this.root.log();
+        //this._root.log();
+        convert_to_LaTeX(this);
     }
 
     public constructor(emit: (message: string)=> void)
     {
         this.emit = emit;
         this.insertion_mode = MODE.initial;
-        this.root = new NODE();
+        this._root = new NODE();
         this.stack_of_open_elements = [];
         this._ready = false;
 
@@ -164,7 +185,7 @@ export class TREE
         switch (t.type)
         {
             case TOKEN_TYPE.comment:
-                this.root.add_child(ELEMENT.from_token(t));
+                this._root.add_child(ELEMENT.from_token(t));
                 break;
             case TOKEN_TYPE.doctype:
                 throw new Error("Under construction.");
@@ -187,12 +208,12 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
-            this.root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(ELEMENT.from_token(t));
         }
         else if (t.type == TOKEN_TYPE.start_tag && t.content == "html")
         {
             const html = ELEMENT.from_token(t);
-            this.root.add_child(html);
+            this._root.add_child(html);
             this.stack_of_open_elements.push(html);
             this.insertion_mode = MODE.before_head;
         }
@@ -203,7 +224,7 @@ export class TREE
         else if (!(t.type == TOKEN_TYPE.character && is_white_char(t.content)))
         {
             const html = new ELEMENT("html");
-            this.root.add_child(html);
+            this._root.add_child(html);
             this.stack_of_open_elements.push(html);
             this.insertion_mode = MODE.before_head;
             return true;
@@ -214,7 +235,7 @@ export class TREE
     {
         if (t.type == TOKEN_TYPE.comment)
         {
-            this.root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(ELEMENT.from_token(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -520,7 +541,7 @@ export class TREE
         
         if (t.type == TOKEN_TYPE.comment)
         {
-            this.root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(ELEMENT.from_token(t));
         }
         else if (t.type == TOKEN_TYPE.doctype || (t.type == TOKEN_TYPE.character && is_white_char(t.content)) || (t.type == TOKEN_TYPE.start_tag && t.content == "html"))
         {
