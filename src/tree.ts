@@ -165,6 +165,22 @@ export class TREE
         return this.stack_of_open_elements[this.stack_of_open_elements.length - 1];
     }
 
+    private has_an_element_in_scope(target: string, scope: string[] = []): boolean
+    {
+        scope.push("html");
+        for (let f = this.stack_of_open_elements.length - 1; f >= 0; f -= 1)
+        {
+            if (this.stack_of_open_elements[f].name == target)
+            {
+                return true;
+            }
+            else if (scope.includes(this.stack_of_open_elements[f].name))
+            {
+                return false;
+            }
+        }
+        return false;
+    }
     private insert_element(t: TOKEN | string): ELEMENT
     {
         const element = (typeof(t) == "string") ? new ELEMENT(t) : ELEMENT.from_token(t);
@@ -395,6 +411,12 @@ export class TREE
     }
     private in_body_mode(t: TOKEN): boolean
     {
+        function has_implicit_end_tag(element_name: string): boolean
+        {
+            return ["dd", "dt", "li", "optgroup", "option", "p", "rb",
+                    "rp", "rt", "rtc", "tbody", "td", "tfoot", "th",
+                    "thead", "tr", "body", "html"].includes(element_name);
+        }
         if (t.type == TOKEN_TYPE.character)
         {
             if (t.content == '\0')
@@ -423,7 +445,7 @@ export class TREE
 
                     for (const a in t.attributes)
                     {
-                        this.last.attributes[a] ??= t.attributes[a];
+                        this.stack_of_open_elements[0].attributes[a] ??= t.attributes[a];
                     }
                     break;
                 case "base":
@@ -457,13 +479,28 @@ export class TREE
             {
                 case "body":
                 case "html":
-                    this.insertion_mode = MODE.after_body;
-                    //TODO /body /html
-                    if (t.content == "html")
+                    if (this.has_an_element_in_scope("body"))
                     {
-                        return true;
+                        this.parse_error();
+                        break;
                     }
-                    break;
+                    for (const e of this.stack_of_open_elements)
+                    {
+                        if (!has_implicit_end_tag(e.name))
+                        {
+                            this.parse_error();
+                            break;
+                        }
+                    }
+                    this.insertion_mode = MODE.after_body;
+
+                    if (this.has_an_element_in_scope("body"))
+                    {
+                        this.parse_error();
+                        break;
+                    }
+                    this.insertion_mode = MODE.after_body;
+                    return (t.content == "html");
                 default:
                     throw new Error(`HTML tag ${t.content} is not supported.`);
             }
@@ -472,9 +509,7 @@ export class TREE
         {
             for (const e of this.stack_of_open_elements)
             {
-                if (!["dd", "dt", "li", "optgroup", "option", "p", 
-                      "rb", "rp", "rt", "rtc", "tbody", "td", "tfoot", 
-                      "th", "thead", "tr", "body", "html"].includes(e.name))
+                if (!has_implicit_end_tag(e.name))
                 {
                     this.parse_error();
                     break;
