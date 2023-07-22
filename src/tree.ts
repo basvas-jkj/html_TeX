@@ -16,6 +16,8 @@ enum MODE
     text
 }
 
+const unsupported_tags = ["frameset", "noframes", "style", "script", "template", "base",
+    "basefont", "bgsound", "link"]
 export class NODE
 {
     protected _children: NODE[];
@@ -198,21 +200,20 @@ export class TREE
 
     private initial_mode(t: TOKEN): boolean
     {
-        switch (t.type)
+        if (t.type == TOKEN_TYPE.comment)
         {
-            case TOKEN_TYPE.comment:
-                this._root.add_child(ELEMENT.from_token(t));
-                break;
-            case TOKEN_TYPE.doctype:
-                throw new Error("Under construction.");
-            default:
-                if (t.type != TOKEN_TYPE.character || !is_white_char(t.content))
-                {
-                    this.parse_error();
-                    this.quirk_mode = true;
-                    this.insertion_mode = MODE.before_html;
-                    return true;
-                }
+            this._root.add_child(ELEMENT.from_token(t));
+        }
+        else if (t.type == TOKEN_TYPE.doctype)
+        {
+            throw new Error("Under construction.");
+        }
+        else if (t.type != TOKEN_TYPE.character || !is_white_char(t.content))
+        {
+            this.parse_error();
+            this.quirk_mode = true;
+            this.insertion_mode = MODE.before_html;
+            return true;
         }
         return false;
     }
@@ -280,7 +281,11 @@ export class TREE
     }
     private in_head_mode(t: TOKEN): boolean
     {
-        if (t.type == TOKEN_TYPE.character && is_white_char(t.content))
+        if (t.is(...unsupported_tags))
+        {
+            throw new Error(`HTML tag ${t.content} is not supported.`);
+        }
+        else if (t.type == TOKEN_TYPE.character && is_white_char(t.content))
         {
             this.head.insert_char(t.content);
         }
@@ -294,36 +299,28 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
-            switch (t.content)
+            if (t.is("html"))
             {
-                case "html":
-                    return this.in_body_mode(t);
-                case "meta":
-                    this.insert_element(t);
-                    this.stack_of_open_elements.pop();
-                    break;
-                case "title":
-                    this.generic_rcdata(t);
-                    break;
-
-                case "noscript":
-                case "noframes":
-                case "style":
-                case "script":
-                case "template":
-                case "base":
-                case "basefont":
-                case "bgsound":
-                case "link":
-                    throw new Error(`HTML tag ${t.content} is not supported.`);
-
-                case "head":
-                    this.parse_error();
-                    break;
-                default:
-                    this.stack_of_open_elements.pop();
-                    this.insertion_mode = MODE.after_head;
-                    return true;
+                return this.in_body_mode(t);
+            }
+            else if (t.is("meta"))
+            {
+                this.insert_element(t);
+                this.stack_of_open_elements.pop();
+            }
+            else if (t.is("title"))
+            {
+                this.generic_rcdata(t);
+            }
+            else if (t.is("head"))
+            {
+                this.parse_error();
+            }
+            else
+            {
+                this.stack_of_open_elements.pop();
+                this.insertion_mode = MODE.after_head;
+                return true;
             }
         }
         else if (t.type == TOKEN_TYPE.end_tag)
@@ -349,7 +346,11 @@ export class TREE
     }
     private after_head_mode(t: TOKEN): boolean
     {
-        if (t.type == TOKEN_TYPE.character && is_white_char(t.content))
+        if (t.is(...unsupported_tags))
+        {
+            throw new Error(`HTML tag ${t.content} is not supported.`);
+        }
+        else if (t.type == TOKEN_TYPE.character && is_white_char(t.content))
         {
             (this.last as ELEMENT).insert_char(t.content);
         }
@@ -363,38 +364,31 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
-            switch (t.content)
+            if (t.is("html"))
             {
-                case "html":
-                    this.in_body_mode(t);
-                    break;
-                case "body":
-                    this.insert_element(t);
-                    this.insertion_mode = MODE.in_body;
-                    break;
-                case "frameset":
-                case "base":
-                case "basefont":
-                case "bgsound":
-                case "link":
-                case "noframes":
-                case "style":
-                case "script":
-                case "template":
-                    throw new Error(`HTML tag ${t.content} is not supported.`);
-                   
-                case "title":
-                case "meta":
-                    this.parse_error();
-                    this.stack_of_open_elements.push(this.head);
-                    this.in_head_mode(t);
-                    this.stack_of_open_elements.pop();
-                    break;
-                case "head":
-                    this.parse_error();
-                    break;
-                default:
-                    break;
+                this.in_body_mode(t);
+            }
+            else if (t.is("body"))
+            {
+                this.insert_element(t);
+                this.insertion_mode = MODE.in_body;
+            }
+            else if (t.is("title", "meta"))
+            {
+                this.parse_error();
+                this.stack_of_open_elements.push(this.head);
+                this.in_head_mode(t);
+                this.stack_of_open_elements.pop();
+            }
+            else if (t.is("head"))
+            {
+                this.parse_error();
+            }
+            else
+            {
+                this.insert_element("body");
+                this.insertion_mode = MODE.in_body;
+                return true;
             }
         }
         else if (t.type == TOKEN_TYPE.end_tag && !["body", "html", "br"].includes(t.content))
@@ -417,7 +411,11 @@ export class TREE
                     "rp", "rt", "rtc", "tbody", "td", "tfoot", "th",
                     "thead", "tr", "body", "html"].includes(element_name);
         }
-        if (t.type == TOKEN_TYPE.character)
+        if (t.is(...unsupported_tags))
+        {
+            throw new Error(`HTML tag ${t.content} is not supported.`);
+        }
+        else if (t.type == TOKEN_TYPE.character)
         {
             if (t.content == '\0')
             {
@@ -438,71 +436,58 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
-            switch (t.content)
+            if (t.is("html"))
             {
-                case "html":
-                    this.parse_error();
+                 this.parse_error();
 
+                 for (const a in t.attributes)
+                 {
+                     this.stack_of_open_elements[0].attributes[a] ??= t.attributes[a];
+                 }
+            }
+            else if (t.is("title", "meta"))
+            {
+                return this.in_head_mode(t);
+            }
+            else if (t.is("body"))
+            {
+                this.parse_error();
+                if (this.stack_of_open_elements.length > 1 && this.stack_of_open_elements[1].name == "body")
+                {
                     for (const a in t.attributes)
                     {
-                        this.stack_of_open_elements[0].attributes[a] ??= t.attributes[a];
+                        this.last.attributes[a] ??= t.attributes[a];
                     }
-                    break;
-                case "base":
-                case "basefont":
-                case "bgsound":
-                case "link":
-                case "noframes":
-                case "style":
-                case "script":
-                case "template":
-                case "title":
-                case "meta":
-                    return this.in_head_mode(t);
-                case "body":
-                    this.parse_error();
-                    if (this.stack_of_open_elements.length > 1 && this.stack_of_open_elements[1].name == "body")
-                    {
-                        for (const a in t.attributes)
-                        {
-                            this.last.attributes[a] ??= t.attributes[a];
-                        }
-                    }
-                    break;
-                default:
-                    throw new Error(`HTML tag ${t.content} is not supported.`);
+                }
+            }
+            else
+            {
+                throw new Error(`HTML tag ${t.content} is not supported.`);
             }
         }
         else if (t.type == TOKEN_TYPE.end_tag)
         {
-            switch (t.content)
+            if (t.is("body", "html"))
             {
-                case "body":
-                case "html":
-                    if (this.has_an_element_in_scope("body"))
+                if (this.has_an_element_in_scope("body"))
+                {
+                    this.parse_error();
+                    return false;
+                }
+                for (const e of this.stack_of_open_elements)
+                {
+                    if (!has_implicit_end_tag(e.name))
                     {
                         this.parse_error();
                         break;
                     }
-                    for (const e of this.stack_of_open_elements)
-                    {
-                        if (!has_implicit_end_tag(e.name))
-                        {
-                            this.parse_error();
-                            break;
-                        }
-                    }
-                    this.insertion_mode = MODE.after_body;
-
-                    if (this.has_an_element_in_scope("body"))
-                    {
-                        this.parse_error();
-                        break;
-                    }
-                    this.insertion_mode = MODE.after_body;
-                    return (t.content == "html");
-                default:
-                    throw new Error(`HTML tag ${t.content} is not supported.`);
+                }
+                this.insertion_mode = MODE.after_body;
+                return (t.content == "html");
+            }
+            else
+            {
+                throw new Error(`HTML tag ${t.content} is not supported.`);
             }
         }
         else if (t.type == TOKEN_TYPE.eof)
