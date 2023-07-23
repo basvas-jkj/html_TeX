@@ -17,6 +17,7 @@ enum MODE
 }
 
 const headings = ["h1", "h2", "h3", "h4", "h5"]; // LaTeX article supports only five layers of headings
+const formatting = ["b", "strong", "i", "em", "u", "big", "small", "code", "tt"];
 const unsupported_tags = ["frameset", "noframes", "style", "script", "template", "base",
     "basefont", "bgsound", "link"]
 
@@ -433,6 +434,7 @@ export class TREE
                     "rp", "rt", "rtc", "tbody", "td", "tfoot", "th",
                     "thead", "tr", "body", "html"].includes(element_name);
         }
+
         if (t.is(...unsupported_tags))
         {
             throw new Error(`HTML tag ${t.content} is not supported.`);
@@ -506,6 +508,10 @@ export class TREE
                 }
                 this.insert_element(t);
             }
+            else if (t.is(...formatting))
+            {
+                this.insert_element(t);
+            }
             else
             {
                 throw new Error(`HTML tag ${t.content} is not supported.`);
@@ -550,6 +556,10 @@ export class TREE
                 {
                     this.close(t.content);
                 }
+            }
+            else if (t.is(...formatting))
+            {
+                this.stack_of_open_elements.pop();
             }
             else
             {
