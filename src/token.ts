@@ -64,4 +64,8 @@ export class TOKEN
             }
         }
     }
+    public is(...name: string[])
+    {
+        return (this.type == TOKEN_TYPE.start_tag || this.type == TOKEN_TYPE.end_tag) && name.includes(this.content);
+    }
 }

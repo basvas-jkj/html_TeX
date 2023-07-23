@@ -16,10 +16,17 @@ enum MODE
     text
 }
 
+const headings = ["h1", "h2", "h3", "h4", "h5"]; // LaTeX article supports only five layers of headings
 const unsupported_tags = ["frameset", "noframes", "style", "script", "template", "base",
     "basefont", "bgsound", "link"]
+
 export class NODE
 {
+    public static from_comment(token: TOKEN): NODE
+    {
+        return new NODE(token.content);
+    }
+
     protected _children: NODE[];
     protected _content: string;
     
@@ -71,7 +78,7 @@ export class ELEMENT extends NODE
         return n;
     }
 
-    public insert_char(ch: string)
+    public insert_char(ch: string): void
     {
         if (this._children.length > 0 && this._children[this._children.length-1] instanceof TEXT)
         {
@@ -81,6 +88,10 @@ export class ELEMENT extends NODE
         {
             this.add_child(new TEXT(ch));
         }
+    }
+    public is(...elements: string[]): boolean
+    {
+        return elements.includes(this.name);
     }
 }
 export class TEXT extends NODE
@@ -136,7 +147,6 @@ export class TREE
     private stop_parsing()
     {
         this._ready = true;
-        //this._root.log();
         convert_to_LaTeX(this);
     }
 
@@ -183,6 +193,18 @@ export class TREE
         }
         return false;
     }
+    private close(element_name: string)
+    {
+        if (this.last.name != element_name)
+        {
+            this.parse_error();
+        }
+        while (this.last.name != element_name)
+        {
+            this.stack_of_open_elements.pop();
+        }
+        this.stack_of_open_elements.pop();
+    }
     private insert_element(t: TOKEN | string): ELEMENT
     {
         const element = (typeof(t) == "string") ? new ELEMENT(t) : ELEMENT.from_token(t);
@@ -202,7 +224,7 @@ export class TREE
     {
         if (t.type == TOKEN_TYPE.comment)
         {
-            this._root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -225,7 +247,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
-            this._root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.start_tag && t.content == "html")
         {
@@ -252,7 +274,7 @@ export class TREE
     {
         if (t.type == TOKEN_TYPE.comment)
         {
-            this._root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -356,7 +378,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
-            this.last.add_child(ELEMENT.from_token(t));
+            this.last.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -428,7 +450,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
-            this.last.add_child(ELEMENT.from_token(t));
+            this.last.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -460,6 +482,30 @@ export class TREE
                     }
                 }
             }
+            //"address", "article", "aside", "blockquote", "center", "details", "dialog"
+            // "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header"
+            // "hgroup", "main", "menu", "nav", "ol", "search", "section", "summary", "ul"
+            else if (t.is("p"))
+            {
+                if (this.has_an_element_in_scope("p"))
+                {
+                    this.close("p");
+                }
+                this.insert_element(t);
+            }
+            else if (t.is(...headings))
+            {
+                if (this.has_an_element_in_scope("p"))
+                {
+                    this.close("p");
+                }
+                if (this.last.is(...headings))
+                {
+                    this.parse_error();
+                    this.stack_of_open_elements.pop();
+                }
+                this.insert_element(t);
+            }
             else
             {
                 throw new Error(`HTML tag ${t.content} is not supported.`);
@@ -484,6 +530,26 @@ export class TREE
                 }
                 this.insertion_mode = MODE.after_body;
                 return (t.content == "html");
+            }
+            else if (t.is("p"))
+            {
+                if (!this.has_an_element_in_scope("p"))
+                {
+                    this.parse_error();
+                    this.insert_element("p");
+                }
+                this.close("p");
+            }
+            else if (t.is(...headings))
+            {
+                if (!this.has_an_element_in_scope(t.content))
+                {
+                    this.parse_error();
+                }
+                else
+                {
+                    this.close(t.content);
+                }
             }
             else
             {
@@ -530,7 +596,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
-            this.last.add_child(ELEMENT.from_token(t));
+            this.last.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
@@ -561,7 +627,7 @@ export class TREE
         
         if (t.type == TOKEN_TYPE.comment)
         {
-            this._root.add_child(ELEMENT.from_token(t));
+            this._root.add_child(NODE.from_comment(t));
         }
         else if (t.type == TOKEN_TYPE.doctype || (t.type == TOKEN_TYPE.character && is_white_char(t.content)) || (t.type == TOKEN_TYPE.start_tag && t.content == "html"))
         {

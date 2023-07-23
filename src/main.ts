@@ -11,6 +11,7 @@ function on_parse_error(message: string): void
 function on_uncaught_exception(e: Error): void
 {
     console.error("Uncaught exception: " + e.message);
+    console.error(e.stack);
 }
 
 function main(): void
