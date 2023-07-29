@@ -48,15 +48,17 @@ const conversion_entries: Record<string, {before: string, after: string}> =
     "h5": {before: "\\subparagraph{", after: "}\n"},
     "p": {before: "\n", after: "\n"},
 
-    "b": {before: "\\textbf{", after: "}"},
-    "strong": {before: "\\textbf{", after: "}"},
-    "i": {before: "\\textit{", after: "}"},
-    "em": {before: "\\emph{", after: "}"},
-    "u": {before: "\\underline{", after: "}"},
-    "big": {before: "{\\Large\n", after: "}"},
-    "small": {before: "{\\small\n", after: "}"},
-    "code": {before: "\\texttt{", after: "}"},
-    "tt": {before: "\\texttt{", after: "}"}
+    "b": {before: "\\textbf{", after: "}\n"},
+    "strong": {before: "\\textbf{", after: "}\n"},
+    "i": {before: "\\textit{", after: "}\n"},
+    "em": {before: "\\emph{", after: "}\n"},
+    "u": {before: "\\underline{", after: "}\n"},
+    "big": {before: "{\\Large\n", after: "}\n"},
+    "small": {before: "{\\small\n", after: "}\n"},
+    "code": {before: "\\texttt{", after: "}\n"},
+    "tt": {before: "\\texttt{", after: "}\n"},
+
+    "br": {before: "\\\\", after: ""}
 }
 
 

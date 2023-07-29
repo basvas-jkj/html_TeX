@@ -512,6 +512,11 @@ export class TREE
             {
                 this.insert_element(t);
             }
+            else if (t.is("br"))
+            {
+                this.insert_element(t);
+                this.stack_of_open_elements.pop();
+            }
             else
             {
                 throw new Error(`HTML tag ${t.content} is not supported.`);
@@ -559,6 +564,12 @@ export class TREE
             }
             else if (t.is(...formatting))
             {
+                this.stack_of_open_elements.pop();
+            }
+            else if (t.is("br"))
+            {
+                this.parse_error();
+                this.insert_element(t);
                 this.stack_of_open_elements.pop();
             }
             else
