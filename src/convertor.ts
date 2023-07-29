@@ -70,12 +70,40 @@ function convert(node: NODE)
     }
     else if (node instanceof ELEMENT)
     {
-        write(conversion_entries[node.name].before);
-        for (const ch of node.children)
+        if (node.name == "img")
         {
-            convert(ch);
+            const attributes = node.attributes;
+            if (attributes["src"] != null)
+            {
+                let options = "";
+                if (attributes["height"] != null)
+                {
+                    options += ",height=" + attributes["height"]
+                }
+                if (attributes["width"] != null)
+                {
+                    options += ",width=" + attributes["width"]
+                }
+                if (options != "")
+                {
+                    options = "[" + options.substring(1) + "]"
+                    write(`\\includegraphics${options}{${attributes["src"]}}`);
+                }
+                else
+                {
+                    write(`\\includegraphics{${attributes["src"]}}`);
+                }
+            }
         }
-        write(conversion_entries[node.name].after);
+        else
+        {
+            write(conversion_entries[node.name].before);
+            for (const ch of node.children)
+            {
+                convert(ch);
+            }
+            write(conversion_entries[node.name].after);
+        }
     }
     else
     {
@@ -106,6 +134,9 @@ export function convert_to_LaTeX(t: TREE): void
     file = fs.openSync("ex.tex", "w");
 
     write_line("\\documentclass{article}");
+    write_line("\\usepackage{graphicx}")
+
+
     write_line(`\\title{${title.title_text}}`);
     write_line(`\\author{${title.author}}`);
 

@@ -512,7 +512,7 @@ export class TREE
             {
                 this.insert_element(t);
             }
-            else if (t.is("br"))
+            else if (t.is("br", "img"))
             {
                 this.insert_element(t);
                 this.stack_of_open_elements.pop();
