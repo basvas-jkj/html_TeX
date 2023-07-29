@@ -508,7 +508,7 @@ export class TREE
                 }
                 this.insert_element(t);
             }
-            else if (t.is(...formatting))
+            else if (t.is("a", ...formatting))
             {
                 this.insert_element(t);
             }
@@ -562,9 +562,16 @@ export class TREE
                     this.close(t.content);
                 }
             }
-            else if (t.is(...formatting))
+            else if (t.is("a", ...formatting))
             {
-                this.stack_of_open_elements.pop();
+                if (this.last.name != t.content)
+                {
+                    throw new Error("Incorrectly closed tags are not supported.");
+                }
+                else
+                {
+                    this.stack_of_open_elements.pop();
+                }
             }
             else if (t.is("br"))
             {

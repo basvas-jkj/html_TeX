@@ -57,6 +57,7 @@ const conversion_entries: Record<string, {before: string, after: string}> =
     "small": {before: "{\\small\n", after: "}\n"},
     "code": {before: "\\texttt{", after: "}\n"},
     "tt": {before: "\\texttt{", after: "}\n"},
+    "a": {before: "\\href{", after: "}\n"},
 
     "br": {before: "\\\\", after: ""}
 }
@@ -98,6 +99,12 @@ function convert(node: NODE)
         else
         {
             write(conversion_entries[node.name].before);
+            
+            if (node.name == "a" && node.attributes["href"] != null)
+            {
+                write(node.attributes["href"] + "}{");
+            }
+
             for (const ch of node.children)
             {
                 convert(ch);
@@ -135,7 +142,7 @@ export function convert_to_LaTeX(t: TREE): void
 
     write_line("\\documentclass{article}");
     write_line("\\usepackage{graphicx}")
-
+    write_line("\\usepackage{hyperref}")
 
     write_line(`\\title{${title.title_text}}`);
     write_line(`\\author{${title.author}}`);
