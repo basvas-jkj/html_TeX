@@ -122,6 +122,7 @@ export class TEXT extends NODE
 
 export class TREE
 {
+    private output: string | 1;
     private insertion_mode: MODE;
     private _root: NODE;
     private quirk_mode = false;
@@ -148,11 +149,12 @@ export class TREE
     private stop_parsing()
     {
         this._ready = true;
-        convert_to_LaTeX(this);
+        convert_to_LaTeX(this, this.output);
     }
 
-    public constructor(emit: (message: string)=> void)
+    public constructor(output: string | 1, emit: (message: string)=> void)
     {
+        this.output = output;
         this.emit = emit;
         this.insertion_mode = MODE.initial;
         this._root = new NODE();

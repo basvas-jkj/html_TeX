@@ -118,7 +118,7 @@ function convert(node: NODE)
     }
 }
 
-export function convert_to_LaTeX(t: TREE): void
+export function convert_to_LaTeX(t: TREE, output: string | 1): void
 {
     const html = t.root.children[0];
     let head: ELEMENT;
@@ -138,7 +138,14 @@ export function convert_to_LaTeX(t: TREE): void
 
     const title = get_title(head);
 
-    file = fs.openSync("ex.tex", "w");
+    if (output == 1)
+    {
+        file = 1;
+    }
+    else
+    {
+        file = fs.openSync(output, "w");
+    }
 
     write_line("\\documentclass{article}");
     write_line("\\usepackage{graphicx}")
