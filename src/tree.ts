@@ -125,7 +125,6 @@ export class TREE
     private output: string | 1;
     private insertion_mode: MODE;
     private _root: NODE;
-    private quirk_mode = false;
     private stack_of_open_elements: ELEMENT[];
     private readonly mode_handlers: Record<MODE, (t: TOKEN)=>boolean>;
     private head: ELEMENT = null;
@@ -142,11 +141,11 @@ export class TREE
     }
 
     private emit: (message: string)=> void;
-    private parse_error()
+    private parse_error(message: string): void
     {
-        this.emit(`parse error (${this.insertion_mode})`);
+        this.emit(`parse error (${message})`);
     }
-    private stop_parsing()
+    private stop_parsing(): void
     {
         this._ready = true;
         convert_to_LaTeX(this, this.output);
@@ -200,7 +199,7 @@ export class TREE
     {
         if (this.last.name != element_name)
         {
-            this.parse_error();
+            this.parse_error("some tags aren't closed explicitly");
         }
         while (this.last.name != element_name)
         {
@@ -235,8 +234,7 @@ export class TREE
         }
         else if (t.type != TOKEN_TYPE.character || !is_white_char(t.content))
         {
-            this.parse_error();
-            this.quirk_mode = true;
+            this.parse_error("wrong token: whitespace, comment or DOCTYPE expected");
             this.insertion_mode = MODE.before_html;
             return true;
         }
@@ -246,7 +244,7 @@ export class TREE
     {
         if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.comment)
         {
@@ -261,7 +259,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.end_tag && !["head", "body", "html", "br"].includes(t.content))
         {
-            this.parse_error();
+            this.parse_error("unexpected end tag");
         }
         else if (!(t.type == TOKEN_TYPE.character && is_white_char(t.content)))
         {
@@ -281,7 +279,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.start_tag && t.content == "html")
         {
@@ -294,7 +292,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.end_tag && !["head", "body", "html", "br"].includes(t.content))
         {
-            this.parse_error();
+            this.parse_error("unexpected end tag");
         }
         else if (!(t.type == TOKEN_TYPE.character && is_white_char(t.content)))
         {
@@ -320,7 +318,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
@@ -339,7 +337,7 @@ export class TREE
             }
             else if (t.is("head"))
             {
-                this.parse_error();
+                this.parse_error("nested head is not supported");
             }
             else
             {
@@ -357,7 +355,7 @@ export class TREE
             }
             else
             {
-                this.parse_error();
+                this.parse_error("unexpected end tag");
             }
         }
         else
@@ -385,7 +383,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
@@ -400,14 +398,14 @@ export class TREE
             }
             else if (t.is("title", "meta"))
             {
-                this.parse_error();
+                this.parse_error(`${t.content} tag should be located in head tag`);
                 this.stack_of_open_elements.push(this.head);
                 this.in_head_mode(t);
                 this.stack_of_open_elements.pop();
             }
             else if (t.is("head"))
             {
-                this.parse_error();
+                this.parse_error("HTML document can contain one head tag only");
             }
             else
             {
@@ -418,7 +416,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.end_tag && !["body", "html", "br"].includes(t.content))
         {
-            this.parse_error();
+            this.parse_error("unexpected end tag");
         }
         else
         {
@@ -445,7 +443,7 @@ export class TREE
         {
             if (t.content == '\0')
             {
-                this.parse_error();
+                this.parse_error("unexpected null character");
             }
             else
             {
@@ -458,13 +456,13 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.start_tag)
         {
             if (t.is("html"))
             {
-                 this.parse_error();
+                 this.parse_error("html tag should be the root of HTML structure");
 
                  for (const a in t.attributes)
                  {
@@ -477,7 +475,7 @@ export class TREE
             }
             else if (t.is("body"))
             {
-                this.parse_error();
+                this.parse_error("unexpected body tag");
                 if (this.stack_of_open_elements.length > 1 && this.stack_of_open_elements[1].name == "body")
                 {
                     for (const a in t.attributes)
@@ -505,7 +503,7 @@ export class TREE
                 }
                 if (this.last.is(...headings))
                 {
-                    this.parse_error();
+                    this.parse_error("previous heading wasn't closed");
                     this.stack_of_open_elements.pop();
                 }
                 this.insert_element(t);
@@ -530,14 +528,14 @@ export class TREE
             {
                 if (this.has_an_element_in_scope("body"))
                 {
-                    this.parse_error();
+                    this.parse_error(`unexpected ${t.content} end tag`);
                     return false;
                 }
                 for (const e of this.stack_of_open_elements)
                 {
                     if (!has_implicit_end_tag(e.name))
                     {
-                        this.parse_error();
+                        this.parse_error(`${e.name} wasn't closed explicitly`);
                         break;
                     }
                 }
@@ -548,7 +546,7 @@ export class TREE
             {
                 if (!this.has_an_element_in_scope("p"))
                 {
-                    this.parse_error();
+                    this.parse_error("missing p start tag");
                     this.insert_element("p");
                 }
                 this.close("p");
@@ -557,7 +555,7 @@ export class TREE
             {
                 if (!this.has_an_element_in_scope(t.content))
                 {
-                    this.parse_error();
+                    this.parse_error(`missing ${t.content} start tag`);
                 }
                 else
                 {
@@ -577,7 +575,7 @@ export class TREE
             }
             else if (t.is("br"))
             {
-                this.parse_error();
+                this.parse_error("tag br shouldn't be used as an end tag");
                 this.insert_element(t);
                 this.stack_of_open_elements.pop();
             }
@@ -592,7 +590,7 @@ export class TREE
             {
                 if (!has_implicit_end_tag(e.name))
                 {
-                    this.parse_error();
+                    this.parse_error("unexpected EOF");
                     break;
                 }
             }
@@ -611,7 +609,7 @@ export class TREE
         {
             if (t.type == TOKEN_TYPE.eof)
             {
-                this.parse_error();
+                this.parse_error("unexpected EOF");
             }
             this.stack_of_open_elements.pop();
             this.insertion_mode = this.original_mode;
@@ -630,7 +628,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            this.parse_error();
+            this.parse_error("DOCTYPE should be the first token in HTML document");
         }
         else if (t.type == TOKEN_TYPE.start_tag && t.content == "html")
         {
@@ -646,7 +644,7 @@ export class TREE
         }
         else
         {
-            this.parse_error();
+            this.parse_error("unexpected token");
             this.insertion_mode = MODE.in_body;
             return true;
         }
@@ -669,7 +667,7 @@ export class TREE
         }
         else
         {
-            this.parse_error();
+            this.parse_error("unexpected token");
             this.insertion_mode = MODE.in_body;
             return true;
         }
