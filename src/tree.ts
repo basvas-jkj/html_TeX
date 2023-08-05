@@ -231,7 +231,7 @@ export class TREE
         }
         else if (t.type == TOKEN_TYPE.doctype)
         {
-            throw new Error("Under construction.");
+            this.insertion_mode = MODE.before_html;
         }
         else if (t.type != TOKEN_TYPE.character || !is_white_char(t.content))
         {

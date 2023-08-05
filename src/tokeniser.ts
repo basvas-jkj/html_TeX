@@ -8,8 +8,7 @@ import {is_ascii_letter, is_ascii_lower, is_ascii_upper, is_white_char} from "./
 
 export enum STATE
 {
-    data, 
-    markup_declaration_open, DOCTYPE, cdata_section,
+    data, markup_declaration_open,
     
     comment_start, comment_start_dash, comment, comment_end, comment_end_dash,
     comment_less_than_sign, comment_less_than_sign_bang, bogus_comment,
@@ -17,8 +16,6 @@ export enum STATE
     comment_end_bang,
 
     tag_open, end_tag_open, tag_name, self_closing_start_tag,
-    
-    character_reference,
 
     before_attribute_name, attribute_name, after_attribute_name,
     before_attribute_value, attribute_value_unquoted, after_attribute_value_quoted,
@@ -30,7 +27,6 @@ export enum STATE
 const e = new EventEmitter();
 
 let state: STATE;
-let return_state: STATE;
 let token: TOKEN;
 let buffer: BUFFER;
 
@@ -66,9 +62,7 @@ function data_state(): void
     switch (ch)
     {
         case '&':
-            return_state = STATE.data;
-            state = STATE.character_reference;
-            break;
+            throw new Error("HTML entities are not supported.");
         case '<':
             state = STATE.tag_open;
             break;
@@ -236,24 +230,15 @@ function markup_declaration_open_state(): void
         token = new TOKEN(TOKEN_TYPE.comment, "");
         state = STATE.comment_start;
     }
-    else if (buffer.look("DOCTYPE", true))
+    else if (buffer.look("DOCTYPE html>", true))
     {
-        state = STATE.DOCTYPE;
+        emit_new_token(TOKEN_TYPE.doctype);
+        state = STATE.data;
+
     }
     else if (buffer.look("[CDATA["))
     {
         throw new Error("CDATA not supported");
-        /*
-        if ()
-        {
-            state = STATE.cdata_section;
-        }
-        else
-        {
-            emit_error("cdata in html content");
-            token = new TOKEN(TOKEN_TYPE.comment, "[CDATA[");
-            state = STATE.bogus_comment;
-        }*/
     }
     else
     {
@@ -587,9 +572,7 @@ function attribute_value_double_quoted_state(): void
             state = STATE.after_attribute_value_quoted;
             break;
         case '&':
-            return_state = STATE.attribute_value_unquoted;
-            state = STATE.character_reference;
-            break;
+            throw new Error("HTML entities are not supported.");
         case '\0':
             emit_error("unexpected null character");
             token.add_to_attribute_value(REPLACEMENT);
@@ -613,9 +596,7 @@ function attribute_value_single_quoted_state(): void
             state = STATE.after_attribute_value_quoted;
             break;
         case '&':
-            return_state = STATE.attribute_value_single_quoted;
-            state = STATE.character_reference;
-            break;
+            throw new Error("HTML entities are not supported.");
         case '\0':
             emit_error("unexpected null character");
             token.add_to_attribute_value(REPLACEMENT);
@@ -639,8 +620,7 @@ function attribute_value_unquoted_state(): void
     }
     else if (ch == '&')
     {
-        return_state = STATE.attribute_value_unquoted;
-        state = STATE.character_reference;
+        throw new Error("HTML entities are not supported.");
     }
     else if (ch == '>')
     {
@@ -705,9 +685,7 @@ function rcdata_state(): void
     switch (ch)
     {
         case '&':
-            return_state = STATE.rcdata;
-            state = STATE.character_reference;
-            break;
+            throw new Error("HTML entities are not supported.");
         case '<':
             state = STATE.rcdata_less_than_sign;
             break;
@@ -819,9 +797,6 @@ export function tokenise(b: BUFFER, parse_error_handler: (message: string) => vo
         [STATE.self_closing_start_tag]: self_closing_start_tag_state,
         [STATE.bogus_comment]: bogus_comment_state,
         [STATE.markup_declaration_open]: markup_declaration_open_state,
-        [STATE.character_reference]: null,
-        [STATE.DOCTYPE]: null,
-        [STATE.cdata_section]: null,
         
         [STATE.comment]: comment_state,
         [STATE.comment_start]: comment_start_state,
