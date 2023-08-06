@@ -17,6 +17,13 @@ function on_uncaught_exception(e: Error): void
 
 function parse_args(args: string[]): {input: string | 0, output: string | 1}
 {
+    let force = false;
+    if (args[args.length - 1] == "-f" || args[args.length - 1] == "-force" || args[args.length - 1] == "--force")
+    {
+        force = true;
+        args.pop();
+    }
+
     if (args.length < 3)
     {
         return {
@@ -39,6 +46,7 @@ function parse_args(args: string[]): {input: string | 0, output: string | 1}
         console.log("  1) Reads stdin and writes into stdout.");
         console.log("  2) Reads [input_file] and writes into [input_file].tex");
         console.log("  3) Reads [input_file] and writes into [output_file].");
+        console.log("\nIf the target file already exists, it won't be overwritten unless the flaf -f is specified.");
         process.exit();
     }
     else if (args.length == 3)
@@ -49,7 +57,7 @@ function parse_args(args: string[]): {input: string | 0, output: string | 1}
             process.exit();
         }
         let output_file = path.basename(args[2], ".html") + ".tex";
-        if (fs.existsSync(output_file))
+        if (fs.existsSync(output_file) && !force)
         {
             console.error(`Output file "${output_file} already exists."`);
             process.exit();
@@ -66,7 +74,7 @@ function parse_args(args: string[]): {input: string | 0, output: string | 1}
             console.error(`Input file "${args[2]} doesn't exist."`);
             process.exit();
         }
-        if (fs.existsSync(args[3]))
+        if (fs.existsSync(args[3]) && !force)
         {
             console.error(`Output file "${args[3]} already exists."`);
             process.exit();
