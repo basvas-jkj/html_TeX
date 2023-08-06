@@ -18,24 +18,35 @@ function write_line(line = ""): void
 {
     write(line + "\n");
 }
-function get_title(head: NODE): {title_text: string, author: string}
+function read_head(head: NODE): {title: string, author: string, date: string, language: string}
 {
-    const title = {title_text: "empty", author: "unknown"};
+    const params = {title: "empty", author: "unknown", date: null as string, language: null as string};
     for (const ch of head.children)
     {
         if (ch instanceof ELEMENT)
         {
             if (ch.name == "title")
             {
-                title.title_text = (ch.children[0] as TEXT).text;
+                params.title = (ch.children[0] as TEXT).text;
             }
-            else if (ch.name == "meta" && ch.attributes["name"] == "author")
+            else if (ch.name == "meta")
             {
-                title.author = ch.attributes["content"];
+                if (ch.attributes["name"] == "author")
+                {
+                    params.author = ch.attributes["content"];
+                }
+                else if (ch.attributes["name"] == "date")
+                {
+                    params.date = ch.attributes["content"];
+                }
+                else if (ch.attributes["name"] == "language")
+                {
+                    params.language = ch.attributes["content"];
+                }
             }
         }
     }
-    return title;
+    return params;
 }
 
 const conversion_entries: Record<string, {before: string, after: string}> =
@@ -61,7 +72,6 @@ const conversion_entries: Record<string, {before: string, after: string}> =
 
     "br": {before: "\\\\", after: ""}
 }
-
 
 function convert(node: NODE)
 {
@@ -136,7 +146,7 @@ export function convert_to_LaTeX(t: TREE, output: string | 1): void
         }
     }
 
-    const title = get_title(head);
+    const params = read_head(head);
 
     if (output == 1)
     {
@@ -148,11 +158,19 @@ export function convert_to_LaTeX(t: TREE, output: string | 1): void
     }
 
     write_line("\\documentclass{article}");
-    write_line("\\usepackage{graphicx}")
-    write_line("\\usepackage{hyperref}")
+    write_line("\\usepackage{graphicx}");
+    write_line("\\usepackage{hyperref}");
+    if (params.language != null)
+    {
+        write_line(`\\usepackage[${params.language}]{babel}`);
+    }
 
-    write_line(`\\title{${title.title_text}}`);
-    write_line(`\\author{${title.author}}`);
+    write_line(`\\title{${params.title}}`);
+    write_line(`\\author{${params.author}}`);
+    if (params.date != null)
+    {
+        write_line(`\\date{${params.date}}`);
+    }
 
     write_line("\\begin{document}");
     write_line("\\maketitle");
