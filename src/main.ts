@@ -53,13 +53,13 @@ function parse_args(args: string[]): {input: string | 0, output: string | 1}
     {
         if (!fs.existsSync(args[2]))
         {
-            console.error(`Input file "${args[2]} doesn't exist."`);
+            console.error(`Input file "${args[2]}" doesn't exist.`);
             process.exit();
         }
         let output_file = path.basename(args[2], ".html") + ".tex";
         if (fs.existsSync(output_file) && !force)
         {
-            console.error(`Output file "${output_file} already exists."`);
+            console.error(`Output file "${output_file}" already exists.`);
             process.exit();
         }
         return {
@@ -71,12 +71,12 @@ function parse_args(args: string[]): {input: string | 0, output: string | 1}
     {
         if (!fs.existsSync(args[2]))
         {
-            console.error(`Input file "${args[2]} doesn't exist."`);
+            console.error(`Input file "${args[2]}" doesn't exist.`);
             process.exit();
         }
         if (fs.existsSync(args[3]) && !force)
         {
-            console.error(`Output file "${args[3]} already exists."`);
+            console.error(`Output file "${args[3]}" already exists.`);
             process.exit();
         }
         return {

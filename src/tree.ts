@@ -484,9 +484,6 @@ export class TREE
                     }
                 }
             }
-            //"address", "article", "aside", "blockquote", "center", "details", "dialog"
-            // "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header"
-            // "hgroup", "main", "menu", "nav", "ol", "search", "section", "summary", "ul"
             else if (t.is("p"))
             {
                 if (this.has_an_element_in_scope("p"))
@@ -526,7 +523,7 @@ export class TREE
         {
             if (t.is("body", "html"))
             {
-                if (this.has_an_element_in_scope("body"))
+                if (!this.has_an_element_in_scope("body"))
                 {
                     this.parse_error(`unexpected ${t.content} end tag`);
                     return false;
