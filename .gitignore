@@ -4,7 +4,6 @@
 dist/
 node_modules/
 
-docs/*
-!docs/img/
-!docs/**.tex
-!docs/**.pdf
+doc/*
+!doc/**.tex
+!doc/**.pdf

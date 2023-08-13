@@ -1,0 +1,211 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\newcommand{\zl}{\textbackslash}
+\newcommand{\ls}{\textless}
+\newcommand{\ps}{\textgreater}
+\newcommand{\priloha}[1]{\section*{#1}\addcontentsline{toc}{section}{#1}}
+
+\title{Dokumentace programu HTML\_TeX}
+\author{Václav Stupka}
+\date{13. srpna 2023}
+
+\begin{document}
+	\maketitle
+	\tableofcontents
+	\pagebreak
+	
+	\section{Úvod}
+	HTML\_TeX je jednoduchý program zajišťující překlad souborů z formátu HTML do LaTeXu.
+	Tento projekt vznikl jako zápočtový program	pro předmět Programování pro pokročilé v~letním semestru prvního ročníku na Matema\-ticko-fyzikální fakultě Univerzity Karlovy (obor Informatika).
+	Jedná se o konzolovou aplikaci naprogramovanou v jazyce \textit{TypeScript} a spouštěnou v~pro\-středí
+	\textit{Node.js}.
+	
+	\section{Instalace a spuštění}
+	Pro získání programu HTML\_TeX je nutné mít nainstalované programy \textit{Git}, \textit{Node.js} a \textit{npm}. Instalaci lze iniciovat těmito příkazy:
+	\begin{itemize}
+		\item[\texttt{\$}] \texttt{git clone git@github.com:basvas-jkj/html\_TeX.git}
+		\item[\texttt{\$}] \texttt{cd html\_TeX}
+		\item[\texttt{\$}] \texttt{npm install}
+		\item[\texttt{\$}] \texttt{node node\_modules/typescript/bin/tsc}
+	\end{itemize} 
+	Poté lze program spustit příkazem\texttt{ \$ node dist/main.js}
+	
+	\section{Ovládání}
+	Pokud je program spuštěn bez parametrů, čte standardní vstup a zapisuje na standardní výstup.
+	
+	Pokud je mu předán jako parametr název souboru, čte vstup z tohoto souboru. Výstup zapisuje do souboru, jehož název získá odebráním koncovky \textit{.html} (je-li přítomná) a přidáním koncovky \textit{.tex}.
+	
+	Pokud mu jsou předány názvy dvou souborů, čte vstup z~prvního z~nich a výstup zapisuje do druhého. 
+	
+	V případě, že výstupní soubor již existuje, vypíše chybu a ukončí se.
+	
+	Kromě toho podporuje následující přepínače:\\
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		& \textbf{význam} & \textbf{pořadí} & \textbf{delší verze} \\
+		\hline
+		-v       & vypíše verzi a ukončí program & první & -version \\
+		\hline
+		-h       & vypíše nápovědu a ukončí program & první & -help \\
+		\hline
+		-f       & pokud výstupní soubor existuje, bude přepsán & poslední & -force \\
+		\hline
+		\multicolumn{4}{c}{Dlouhou verzi je možné zadat s jedním nebo se dvěma spojovníky.}
+	\end{tabular}
+	
+	\section{Struktura přeloženého dokumentu}
+	Pro přeložený soubor ve formátu \LaTeX jsem zvolil typ \textit{article} (\texttt{\zl document\-class\{article\}}). Dále se importují následující balíčky: \textit{graphicx}, \textit{hyperref} a \textit{babel} (pouze v případě, že je nastaven jazyk). Následuje vlastní obsah dokumentu. Jako první se volá příkaz \texttt{maketitle}, který vypíše titulek, jméno autora a datum vytvoření. Tyto atributy je možné nastavit v hlavičce vstupního souboru. Zbytek výstupního souboru tvoří přeložený obsah těla HTML dokumentu.
+	
+	\section{Postup parsování a překladu}
+	Program HTML\_TeX podporuje především základní tagy určené k~formá\-tování a strukturování textu (jejich seznam viz příští kapitola). Rozhodl jsem se
+	neimplementovat pokročilejší tagy, jako jsou tabulky nebo seznamy. Opomenul jsem
+	také všechny tagy a atributy, které souvisí s~\textit{CSS} nebo
+	\mbox{s~\textit{JavaScriptem}}.
+
+	Program při zpracování vstupu postupuje podle specifikace HTML \cite{specifikace}.
+	Tato specifikace však nebyla implementována kompletně. Některé vlastnosti HTML jsem vynechal, zároveň na některé situace reaguji způsobem, který více vyhovuje potřebám tohoto projektu. Zejména v případě, že HTML\_TeX narazí na tag, který nezná, okamžitě se ukončí s chybou	\textit{\uv{This tag is not supported}}. Parsovací chyby, které popisuje specifikace, jsou oznámeny hláškou \textit{\uv{Parse error}} a stručným popisem chyby. Parsovací chyby obvykle nezpůsobí ukončení programu, specifikace HTML totiž popisuje způsob, jak na chybu vyřešit. Můj program ho většinou respektuje.
+	
+	Překlad má tři fáze: tokenizace (načtení vstupního souboru a jeho rozložení na jednotlivé prvky -- otevírací a uzavírací tagy, znaky, komentáře, \texttt{DOCTYPE} a konec souboru), sestavení stromu a vlastní překlad do LaTeXu. První dvě fáze probíhají paralelně, protože se mohou navzájem ovlivňovat. Poslední fáze se spustí ve chvíli, kdy je strom kompletně sestaven.
+	
+	Tokenizace i sestavení stromu představují stavový algoritmus (tj. další krok je určen nejenom vstupem, ale také stavem). Tokenizace podporuje stavy související s \texttt{DOCTYPE}, komentáři, HTML tagy a jejich atributy. Sestavení stromu podporuje tzv. módy, které souvisí s hlavičkou a tělem HTML dokumentu (tagy \texttt{\ls head\ps~a \ls body\ps}) a s tagy, které mohou obsahovat pouze text.
+	
+	Vlastní překlad je rekurzivní algoritmus, který nejprve přečte hlavičku HTML, na základě toho určí titulek, autora a jazyk dokumentu a datum jeho vytvoření. Poté se rekurzivně spustí na podstrom těla dokumentu. V~této fázi se již žádná běhová chyba neobjevuje, protože předchozí dvě fáze odmítnou cokoli, co by tento program nedokázal přeložit.
+	
+	\section{Podporované HTML tagy}
+	Speciální význam v HTML má tag \texttt{\ls !DOCTYPE\ps}. Dle specifikace může mít řadu různých podob, dnes se však vyskytuje převážně podoba \texttt{\ls !DOCTYPE html\ps}. Můj program proto umožňuje pouze tuto verzi.
+	
+	\subsection{hlavička HTML}
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		\textbf{HTML} & \textbf{\LaTeX} & \textbf{význam} & \textbf{výchozí hodnota} \\
+		\hline
+		\ls title\ps & \zl title\{...\} & titulek & \uv{empty} \\
+		\hline
+		\ls meta author\ps & \zl author\{...\} & autor & \uv{unknown} \\
+		\hline
+		\ls meta date\ps & \zl date\{...\} & datum & není \\
+		\hline
+		\ls meta language\ps & \zl usepackage[...]\{babel\} & jazyk & není \\
+		\hline
+		\multicolumn{4}{p{14cm}}{(tagy \ls meta\ps~se zapisují způsobem \texttt{\ls meta name="..."~content="..."\ps}, v~tabulce jsem kvůli úspoře místa zvolil zkrácený zápis)}
+		\end{tabular}	\subsection{strukturování textu}
+	\begin{tabular}{|c|c|c|}
+		\hline
+		\textbf{HTML} & \textbf{\LaTeX} & \textbf{význam} \\
+		\hline
+		\ls h1\ps & \zl section*\{...\} & nadpis první úrovně \\
+		\hline
+		\ls h2\ps & \zl subsection*\{...\} & nadpis druhé úrovně \\
+		\hline
+		\ls h3\ps & \zl subsubsection*\{...\} & nadpis třetí úrovně \\
+		\hline
+		\ls h4\ps & \zl paragraph\{...\} & nadpis čtvrté úrovně \\
+		\hline
+		\ls h5\ps & \zl subparagraph\{...\} & nadpis páté úrovně \\
+		\hline
+		\ls p\ps & \uv{prázdný řádek} & odstavec \\
+		\hline
+		\multicolumn{3}{p{8cm}}{(tag \ls h6\ps jsem vynechal, protože LaTeXový článek nepodporuje nadpis šesté úrovně)}
+	\end{tabular}
+
+	\subsection{formátování}
+	\begin{tabular}{|c|c|c|}
+		\hline
+		\textbf{HTML} & \textbf{\LaTeX} & \textbf{význam} \\
+		\hline
+		\ls b\ps & \zl textbf\{...\} & tučné písmo \\
+		\hline
+		\ls strong\ps & \zl textbf\{...\} & tučné písmo \\
+		\hline
+		\ls i\ps & \zl textit\{...\} & kurziva \\
+		\hline
+		\ls em\ps & \zl emph\{...\} & zvýraznění \\
+		\hline
+		\ls u\ps & \zl underline\{...\} & podtržení \\
+		\hline
+		\ls big\ps & \{\zl large ...\} & velké písmo \\
+		\hline
+		\ls small\ps & \{\zl small ...\} & malé písmo \\
+		\hline
+		\ls code\ps & \zl texttt\{...\} & strojopis \\
+		\hline
+		\ls tt\ps & \zl texttt\{...\} & strojopis \\
+		\hline
+	\end{tabular}
+
+	\subsection{ostatní tagy}
+	\begin{tabular}{|c|c|c|}
+	\hline
+	\textbf{HTML} & \textbf{\LaTeX} & \textbf{význam} \\
+	\hline
+	\ls a href\ps & \zl href\{href\}\{...\} & odkaz \\
+	\hline
+	\ls img src height width\ps & \zl includegraphics[height,width]\{src\} & obrázek \\
+	\hline
+	\ls br\ps & \zl\zl & nový řádek \\
+	\hline
+	\end{tabular}
+	
+	\section{Použité technologie a knihovny}
+	K vytvoření samotné aplikace jsem použil programovací jazyk \textit{TypeScript} a běhové
+	prostředí \textit{Node.js}. Pro získání potřebných programů a knihoven jsem využil balíčkovací systém \textit{npm}. Z externích knihoven jsem využil pouze \textit{lodash}, která mi usnadnila
+	porovnávání objektů.
+	
+	Programoval jsem ve vývojovém prostředí \textit{Visual Studio}, zdrojový kód mi kontroloval
+	\textit{ESlint}, verzování projektu mi zajistil systém \textit{Git} a tuto dokumentaci píšu 
+	v~\textit{TexStudiu}.
+
+	\section{Přehled souborů}
+	\paragraph{src/main.ts}
+	Vstupní bod programu. Zajišťuje zpracování parametrů příkazové řádky. Vypisuje zachycené chybové hlášky.
+	
+	\paragraph{src/buffer.ts}
+	Zjednodušuje čtení vstupu. Umožňuje přečíst jeden znak, vrátit zpátky přečtený znak a určit, zda se na vstupu nachází zadaná posloupnost znaků.
+	
+	\paragraph{src/char.ts}
+	Obsahuje pomocné funkce pro určení typu znaku.
+	
+	\paragraph{src/token.ts}
+	Představuje jednu jednotku kódu HTML v první fázi parsování.
+	
+	\paragraph{src/tokeniser.ts}
+	Provede první fázi parsování. Rozloží kód HTML na jednotlivé tokeny a předá je souboru \emph{src/tree.ts} do druhé fáze.
+	
+	\paragraph{src/tree.ts}
+	Provede druhou fázi parsování. Z jednotlivých tokenů poskládá strom. Hotový strom je předán souboru \emph{src/convertor.ts}.
+	
+	\paragraph{src/convertor.ts}
+	Projde celý strom vytvořený souborem \emph{src/tree.ts}, sestaví výsledný kód LaTeXu a zapíše ho na standardní výstup nebo do výstupního souboru.
+	
+	\paragraph{ex.html}
+	Ukázkový soubor, na kterém jsem testoval funkčnost tohoto programu. Ke svému zobrazení potřebuje soubor \emph{img.png}.
+
+	\section{Možná budoucí rozšíření}
+	Ačkoli jsem do tohoto projektu vložil nemalé množství úsilí, můj program nepokrývá HTML kompletně.
+	Bylo by užitečné ho rozšířit o další HTML tagy, především seznamy a tabulky. Kromě toho jsem vynechal
+	také entity, které usnadňují přidávání speciálních znaků (zejména těch, které v HTML mají speciální
+	význam).
+	
+	Z dalších návrhů na vylepšení by bylo přepracovat rozhraní programu. Jeho současná podoba je velice
+	zjednodušená, neumožňuje např. vyvolat překlad několika souborů najednou. Další zajímavou možností 
+	by byl přepínač, který by určil kódování souborů (momentálně lze překládat pouze soubory kódované v \textit{UTF-8}, případně v kompatibilních kódováních).
+	
+	Poslední úpravou, kterou by si můj program zasloužil, je lepší oznamování chyb. Většinu chybových hlášek jsem převzal přímo ze specifikace HTML~\cite{specifikace}. Některé z~těchto hlášek nemusí být plně srozumitelné. Především pouze oznamují, že daný problém nastal, ale nezmíní, na kterém řádku se nachází, ani jak daný problém napravit.
+	\pagebreak
+	
+	\begin{thebibliography}{99}
+		\bibitem{specifikace}
+		Parsování HTML -- specifikace. \\
+		\url{https://html.spec.whatwg.org/multipage/parsing.html}
+		
+		\bibitem{zdroj}
+		Zdrojový kód tohoto projektu. \\
+		\url{https://github.com/basvas-jkj/html\_TeX}
+	\end{thebibliography}
+\end{document}
