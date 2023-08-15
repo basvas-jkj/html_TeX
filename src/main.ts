@@ -18,76 +18,89 @@ function on_uncaught_exception(e: Error): void
 function parse_args(args: string[]): {input: string | 0, output: string | 1}
 {
     let force = false;
-    if (args[args.length - 1] == "-f" || args[args.length - 1] == "-force" || args[args.length - 1] == "--force")
+    const files: {input: string | 0, output: string | 1} = {input: 0, output: 1};
+
+    for (let f = 2; f < args.length; f += 1)
     {
-        force = true;
-        args.pop();
+        if (args[f].startsWith("-"))
+        {
+            if (["-v", "-version", "--version"].includes(args[f]))
+            {
+                console.log("html_TeX: 1.0.0");
+                process.exit();
+            }
+            else if (["-h", "-help", "--help"].includes(args[f]))
+            {
+                console.log("Usage:")
+                console.log("  1) node html_TeX.js");
+                console.log("  2) node html_TeX.js [input_file]");
+                console.log("  3) node html_TeX.js [input_file] [output_file]");
+                console.log("Explanation:")
+                console.log("  1) Reads stdin and writes into stdout.");
+                console.log("  2) Reads [input_file] and writes into [input_file].tex");
+                console.log("  3) Reads [input_file] and writes into [output_file].");
+                console.log("\nIf the target file already exists, it won't be overwritten unless the flaf -f is specified.");
+                console.log("Read documentation for more information.");
+                process.exit();
+            }
+            else if (["-f", "-force", "--force"].includes(args[f]))
+            {
+                force = true;
+            }
+            else
+            {
+                console.error("Unknown flag.");
+                process.exit();
+            }
+        }
+        else if (files.input == 0)
+        {
+            files.input = args[f];
+        }
+        else if (files.output == 1)
+        {
+            files.output = args[f];
+        }
+        else
+        {
+            console.error("Too many argumets.");
+            process.exit();
+        }
     }
 
-    if (args.length < 3)
+    if (files.input != 0)
     {
-        return {
-            input: 0,
-            output: 1
-        }
-    }
-    else if (args[2] == "-v" || args[2] == "-version" || args[2] == "--version")
-    {
-        console.log("html_TeX: 1.0.0");
-        process.exit();
-    }
-    else if (args[2] == "-h" || args[2] == "-help" || args[2] == "--help")
-    {
-        console.log("Usage:")
-        console.log("  1) node html_TeX.js");
-        console.log("  2) node html_TeX.js [input_file]");
-        console.log("  3) node html_TeX.js [input_file] [output_file]");
-        console.log("Explanation:")
-        console.log("  1) Reads stdin and writes into stdout.");
-        console.log("  2) Reads [input_file] and writes into [input_file].tex");
-        console.log("  3) Reads [input_file] and writes into [output_file].");
-        console.log("\nIf the target file already exists, it won't be overwritten unless the flaf -f is specified.");
-        process.exit();
-    }
-    else if (args.length == 3)
-    {
-        if (!fs.existsSync(args[2]))
+        if (files.output == 1)
         {
-            console.error(`Input file "${args[2]}" doesn't exist.`);
-            process.exit();
+            if (!fs.existsSync(files.input))
+            {
+                console.error(`Input file "${files.input}" doesn't exist.`);
+                process.exit();
+            }
+            files.output = path.basename(files.input, ".html") + ".tex";
+            if (fs.existsSync(files.output) && !force)
+            {
+                console.error(`Output file "${files.output}" already exists.`);
+                process.exit();
+            }
+
         }
-        let output_file = path.basename(args[2], ".html") + ".tex";
-        if (fs.existsSync(output_file) && !force)
+        else
         {
-            console.error(`Output file "${output_file}" already exists.`);
-            process.exit();
-        }
-        return {
-            input: args[2],
-            output: output_file
+            if (!fs.existsSync(files.input))
+            {
+                console.error(`Input file "${files.input}" doesn't exist.`);
+                process.exit();
+            }
+            if (fs.existsSync(files.output) && !force)
+            {
+                console.error(`Output file "${files.output}" already exists.`);
+                process.exit();
+            }
         }
     }
-    else if (args.length == 4)
-    {
-        if (!fs.existsSync(args[2]))
-        {
-            console.error(`Input file "${args[2]}" doesn't exist.`);
-            process.exit();
-        }
-        if (fs.existsSync(args[3]) && !force)
-        {
-            console.error(`Output file "${args[3]}" already exists.`);
-            process.exit();
-        }
-        return {
-            input: args[2],
-            output: args[3]
-        }
-    }
-    else
-    {
-        throw new Error("To much arguments.");
-    }
+
+    return files;
 }
 
 function main(): void
@@ -95,7 +108,7 @@ function main(): void
     const args = parse_args(process.argv);
     const input = args.input;
     const output = args.output;
-    
+
     const source = fs.readFileSync(input, "utf-8");
     const b = new BUFFER(source);
     const t = new TREE(output, on_parse_error);
