@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html>
     <head>
         <title>j.k.j</title>
@@ -56,5 +55,75 @@
             <a href="https://www.seznam.cz"><b>Nejlepší pes</b></a> <br>
             <a href="https://www.linux.com"><u>Nejlepší tučňák</u></a>
         </p>
+
+        <h2>nečíslovaný seznam</h2>
+        <ul>
+            <li>ano</li>
+            <li>
+                ne
+                <ul>
+                    <li>ahoj</li>
+                    <li>
+                        dobrý den
+                        <ul>
+                            <li>
+                                Co tu chceš?
+                                <ul>
+                                    <li>koupit boty</li>
+                                    <li>schovat se</li>
+                                    <li>dělat něco nekalého</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2>číslovaný seznam</h2>
+        <ol>
+            <li>ano</li>
+            <li>
+                ne
+                <ol>
+                    <li>ahoj</li>
+                    <li>
+                        dobrý den
+                        <ol>
+                            <li>
+                                Co tu chceš?
+                                <ol>
+                                    <li><u>koupit boty</u></li>
+                                    <li>schovat se</li>
+                                    <li>dělat něco nekalého
+                                        <ul>
+                                            <li>Ačkoli má seznam v TeXu omezenou hloubku,</li>
+                                            <li>je možné tuto hloubku obejít</li>
+                                            <li>pomocí jiného typu seznamu.
+                                                <ul>
+                                                    <li>Poslední odrážka, kterou nelze obejít!</li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    <!--zde chybí </li>-->
+                                </ol>
+                            </li>
+                        </ol>
+                    </li>
+                </ol>
+            </li>
+        </ol>
+
+        <h2>seznam definic</h2>
+        <dl>
+            <dt><i>HTML</i></dt>
+            <dd>značkovací jazyk pro webový prohlížeč</dd>
+            
+            <dt>LaTeX</dt>
+            <dd>značkovací jazyk pro sazbu téměř jakéhokoli textu</dd>
+            
+            <dt><big>Markdown</big></dt>
+            <dd>nějaký další značkovací jazyk</dd>
+        </dl>
     </body>
 </html>

@@ -7,3 +7,6 @@ node_modules/
 doc/*
 !doc/**.tex
 !doc/**.pdf
+
+ex.*
+!ex.html

@@ -20,6 +20,8 @@ const headings = ["h1", "h2", "h3", "h4", "h5"]; // LaTeX article supports only 
 const formatting = ["b", "strong", "i", "em", "u", "big", "small", "code", "tt"];
 const unsupported_tags = ["frameset", "noframes", "style", "script", "template", "base",
     "basefont", "bgsound", "link"]
+const special = ["body", "br", "dd", "dl", "dt", "h1", "h2", "h3", "h4", "h5", "h6",
+    "head", "hr", "html", "img", "li", "meta", "ol", "p", "title", "ul"];
 
 export class NODE
 {
@@ -484,7 +486,7 @@ export class TREE
                     }
                 }
             }
-            else if (t.is("p"))
+            else if (t.is("p", "ul", "ol", "dl"))
             {
                 if (this.has_an_element_in_scope("p"))
                 {
@@ -513,6 +515,27 @@ export class TREE
             {
                 this.insert_element(t);
                 this.stack_of_open_elements.pop();
+            }
+            else if (t.is("li", "dd", "dt"))
+            {
+                for (let f = this.stack_of_open_elements.length - 1; f >= 0; f -= 1)
+                {
+                    let node = this.stack_of_open_elements[f];
+                    if (node.name == t.content)
+                    {
+                        this.close(t.content);
+                        break;
+                    }
+                    else if (t.is(...special) && !t.is("p"))
+                    {
+                        break;
+                    }
+                }
+                if (this.has_an_element_in_scope("p"))
+                {
+                    this.close("p");
+                }
+                this.insert_element(t);
             }
             else
             {
@@ -575,6 +598,39 @@ export class TREE
                 this.parse_error("tag br shouldn't be used as an end tag");
                 this.insert_element(t);
                 this.stack_of_open_elements.pop();
+            }
+            else if (t.is("ul", "ol", "dl"))
+            {
+                if (!this.has_an_element_in_scope(t.content))
+                {
+                    this.parse_error(`unexpected ${t.content} end tag`);
+                }
+                else
+                {
+                    this.close(t.content);
+                }
+            }
+            else if (t.is("li"))
+            {
+                if (!this.has_an_element_in_scope("li", ["ul", "ol"]))
+                {
+                    this.parse_error("unexpected li end tag");
+                }
+                else
+                {
+                    this.close("li");
+                }
+            }
+            else if (t.is("dd", "dt"))
+            {
+                if (!this.has_an_element_in_scope(t.content))
+                {
+                    this.parse_error(`unexpected ${t.content} end tag`);
+                }
+                else
+                {
+                    this.close(t.content);
+                }
             }
             else
             {

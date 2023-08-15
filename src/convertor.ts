@@ -70,6 +70,14 @@ const conversion_entries: Record<string, {before: string, after: string}> =
     "tt": {before: "\\texttt{", after: "}\n"},
     "a": {before: "\\href{", after: "}\n"},
 
+    "ul": {before: "\\begin{itemize}\n", after: "\\end{itemize}\n"},
+    "ol": {before: "\\begin{enumerate}\n", after: "\\end{enumerate}\n"},
+    "li": {before: "\\item\n", after: "\n"},
+
+    "dl": {before: "\\begin{description}\n", after: "\\end{description}\n"},
+    "dt": {before: "\\item[", after: "]\n"},
+    "dd": {before: "", after: "\n"},
+
     "br": {before: "\\\\", after: ""}
 }
 
