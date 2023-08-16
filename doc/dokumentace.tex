@@ -41,22 +41,22 @@
 	
 	Pokud je mu předán jako parametr název souboru, čte vstup z tohoto souboru. Výstup zapisuje do souboru, jehož název získá odebráním koncovky \textit{.html} (je-li přítomná) a přidáním koncovky \textit{.tex}.
 	
-	Pokud mu jsou předány názvy dvou souborů, čte vstup z~prvního z~nich a výstup zapisuje do druhého. 
+	Pokud mu jsou předány názvy dvou souborů, čte vstup z~prvního z~nich a výstup zapisuje do druhého. Více než dva názvy souborů nelze zadat.
 	
 	V případě, že výstupní soubor již existuje, vypíše chybu a ukončí se.
 	
 	Kromě toho podporuje následující přepínače:\\
-	\begin{tabular}{|c|c|c|c|}
+	\begin{tabular}{|c|c|c|}
 		\hline
-		& \textbf{význam} & \textbf{pořadí} & \textbf{delší verze} \\
+		& \textbf{význam} & \textbf{delší verze} \\
 		\hline
-		-v       & vypíše verzi a ukončí program & první & -version \\
+		-v       & vypíše verzi a ukončí program & -version \\
 		\hline
-		-h       & vypíše nápovědu a ukončí program & první & -help \\
+		-h       & vypíše nápovědu a ukončí program & -help \\
 		\hline
-		-f       & pokud výstupní soubor existuje, bude přepsán & poslední & -force \\
+		-f       & pokud výstupní soubor existuje, bude přepsán & -force \\
 		\hline
-		\multicolumn{4}{c}{Dlouhou verzi je možné zadat s jedním nebo se dvěma spojovníky.}
+		\multicolumn{3}{c}{Dlouhou verzi je možné zadat s jedním nebo se dvěma spojovníky.}
 	\end{tabular}
 	
 	\section{Struktura přeloženého dokumentu}
@@ -64,7 +64,7 @@
 	
 	\section{Postup parsování a překladu}
 	Program HTML\_TeX podporuje především základní tagy určené k~formá\-tování a strukturování textu (jejich seznam viz příští kapitola). Rozhodl jsem se
-	neimplementovat pokročilejší tagy, jako jsou tabulky nebo seznamy. Opomenul jsem
+	neimplementovat pokročilejší tagy, jako jsou například tabulky. Opomenul jsem
 	také všechny tagy a atributy, které souvisí s~\textit{CSS} nebo
 	\mbox{s~\textit{JavaScriptem}}.
 
@@ -111,6 +111,18 @@
 		\hline
 		\ls p\ps & \uv{prázdný řádek} & odstavec \\
 		\hline
+		\ls ul\ps & \zl begin\{itemize\} ... \zl end\{itemize\} & odrážkový seznam \\
+		\hline
+		\ls ol\ps & \zl begin\{enumerate\} ... \zl end\{enumerate\} & číslovaný seznam \\
+		\hline
+		\ls li\ps & \zl item ... & jeden záznam \\
+		\hline
+		\ls dl\ps & \zl begin\{description\} ... \zl end\{description\} & seznam definic \\
+		\hline
+		\ls dt\ps & \zl item[...] & definovaný pojem \\
+		\hline
+		\ls dl\ps & ... & vlastní definice \\
+		\hline
 		\multicolumn{3}{p{8cm}}{(tag \ls h6\ps jsem vynechal, protože LaTeXový článek nepodporuje nadpis šesté úrovně)}
 	\end{tabular}
 
@@ -150,6 +162,8 @@
 	\hline
 	\ls br\ps & \zl\zl & nový řádek \\
 	\hline
+	\ls hr\ps & \zl noindent\zl hrule & vodorovná oddělovací čára \\
+	\hline
 	\end{tabular}
 	
 	\section{Použité technologie a knihovny}
@@ -188,7 +202,7 @@
 
 	\section{Možná budoucí rozšíření}
 	Ačkoli jsem do tohoto projektu vložil nemalé množství úsilí, můj program nepokrývá HTML kompletně.
-	Bylo by užitečné ho rozšířit o další HTML tagy, především seznamy a tabulky. Kromě toho jsem vynechal
+	Bylo by užitečné ho rozšířit o další HTML tagy, především tabulky. Kromě toho jsem vynechal
 	také entity, které usnadňují přidávání speciálních znaků (zejména těch, které v HTML mají speciální
 	význam).
 	
