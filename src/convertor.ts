@@ -78,7 +78,8 @@ const conversion_entries: Record<string, {before: string, after: string}> =
     "dt": {before: "\\item[", after: "]\n"},
     "dd": {before: "", after: "\n"},
 
-    "br": {before: "\\\\", after: ""}
+    "br": {before: "\\\\", after: ""},
+    "hr": {before: "\\noindent\\hrule", after: "\n"}
 }
 
 function convert(node: NODE)

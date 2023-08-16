@@ -516,6 +516,15 @@ export class TREE
                 this.insert_element(t);
                 this.stack_of_open_elements.pop();
             }
+            else if (t.is("hr"))
+            {
+                if (this.has_an_element_in_scope("p"))
+                {
+                    this.close("p");
+                }
+                this.insert_element(t);
+                this.stack_of_open_elements.pop();
+            }
             else if (t.is("li", "dd", "dt"))
             {
                 for (let f = this.stack_of_open_elements.length - 1; f >= 0; f -= 1)
