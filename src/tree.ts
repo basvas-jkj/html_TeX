@@ -209,6 +209,14 @@ export class TREE
         }
         this.stack_of_open_elements.pop();
     }
+    private generate_implied_end_tags(...exceptions: string[])
+    {
+        const implicitly_closed_elements = ["p", "li", "dd", "dt"];
+        while (implicitly_closed_elements.includes(this.last.name) && !exceptions.includes(this.last.name))
+        {
+            this.stack_of_open_elements.pop();
+        }
+    }
     private insert_element(t: TOKEN | string): ELEMENT
     {
         const element = (typeof(t) == "string") ? new ELEMENT(t) : ELEMENT.from_token(t);
@@ -532,6 +540,7 @@ export class TREE
                     let node = this.stack_of_open_elements[f];
                     if (node.name == t.content)
                     {
+                        this.generate_implied_end_tags(t.content);
                         this.close(t.content);
                         break;
                     }
@@ -588,6 +597,7 @@ export class TREE
                 }
                 else
                 {
+                    this.generate_implied_end_tags();
                     this.close(t.content);
                 }
             }
@@ -616,6 +626,7 @@ export class TREE
                 }
                 else
                 {
+                    this.generate_implied_end_tags();
                     this.close(t.content);
                 }
             }
@@ -627,6 +638,7 @@ export class TREE
                 }
                 else
                 {
+                    this.generate_implied_end_tags("li");
                     this.close("li");
                 }
             }
@@ -638,6 +650,7 @@ export class TREE
                 }
                 else
                 {
+                    this.generate_implied_end_tags(t.content);
                     this.close(t.content);
                 }
             }
